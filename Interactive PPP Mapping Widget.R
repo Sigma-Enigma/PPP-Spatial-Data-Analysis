@@ -23,7 +23,7 @@ dat1$JobsRetained <- as.numeric(dat1$JobsRetained)
 #cleaning bad zips when you aggregate data, consider just including them and cutting this cleaning technique (this assumes they were mislabled and missing from the proper state files. If they are not then they may be double counted, check )
 
 dat1 <- subset(dat1, subset = (Zip > 89119 & Zip < 96214) ) # removes bad zip codes out of california
-
+dat1$Zip <- as.factor(dat1$Zip)
 
 ########
 # need to aggregate data by zip code regions using dplyr
@@ -34,7 +34,6 @@ zip.aggregate.dat.1 <- dat1 %>%
             Total_JobsRetained = sum(as.numeric(JobsRetained)),
             # proportion of each business type
   )
-zip.aggregate.dat.1$Zip <- as.factor(zip.aggregate.dat.1$Zip)
 ########
 
 
@@ -47,7 +46,7 @@ ca.zl <- unique(dat1$Zip) # gets list of unique zip codes from PPP data
 # subsets CA zipcode shapefiles
 zb1 <- subset(zipbounds1, (zipbounds1$ZCTA5CE10) %in% ca.zl ) # same as states variable
 
-zb1 <- spTransform(zb1, CRS("+init=epsg:4326")) #fix CRS
+# zb1 <- spTransform(zb1, CRS("+init=epsg:4326")) #fix CRS
 
 zip.aggregate.dat.1 <- zip.aggregate.dat.1[order(match(zip.aggregate.dat.1$Zip, zb1$ZCTA5CE10)), ]
 
@@ -56,17 +55,23 @@ pal <- colorBin("RdYlBu", domain = zip.aggregate.dat.1$Total_LoanAmount)
 
 
 
+
+
+## IMPORTANT NOTE: CHECK TO ENSURE CRS IS COMPATIBLE WITH LEAFLET CRS!!! 
+# seems ok at first glance, no improperly projected polygons
+
+
 ######### DASHBOARD WIDGET BEGIN ############
 ui <- dashboardPage(
   skin = "red",
   dashboardHeader( title = "PPP Loan Dashboard"),
   dashboardSidebar(
-    sliderInput( "DateApproved", label = "Date Range",
+    sliderInput( "DateApproved", label = "Date Range", # figure out what format this slider Input is outputting data (input$DateApproved)
       min = min(zip.aggregate.dat.1$DateApproved),
       max = max(zip.aggregate.dat.1$DateApproved),
-      value = c(min(zip.aggregate.dat.1$DateApproved), max(zip.aggregate.dat.1$DateApproved)),
+      value = c(min(zip.aggregate.dat.1$DateApproved), max(zip.aggregate.dat.1$DateApproved)), #how do i make the value the slider input value?
       sep = "",
-      step = 1
+      step = 1 # is this step function not working with a time date well? POSITX or y-m-d format?
       )
     ),
   dashboardBody(
@@ -84,12 +89,13 @@ server <- function(input, output){
       filter( DateApproved >= input$DateApproved[1] ) %>%
       filter( DateApproved <= input$DateApproved[2] ) %>%
       group_by( Zip ) %>%
-      summarize(Total_LoanAmount = sum(as.numeric(Total_LoanAmount)),
+      summarize(Total_LoanAmount = sum(as.numeric(Total_LoanAmount), na.rm = TRUE),
                 Count_Loans = n(), 
-                Total_JobsRetained = sum(as.numeric(Total_JobsRetained)),
-                # proportion of each business type
+                Total_JobsRetained = sum(as.numeric(Total_JobsRetained), na.rm = TRUE),
+                # add proportion of each business type
+                # add proportion of each industry type NAICS
       )
-    zip.aggregate.dat.1$Zip <- as.factor(zip.aggregate.dat.1$Zip) # try removing this if it breaks it
+    
   })
   
   data_input_ordered <- reactive({ 
@@ -100,16 +106,16 @@ server <- function(input, output){
     paste("<p>", data_input_ordered()$Zip, "<p>",
           "<p>", "Total Loan Amount: ", data_input_ordered()$Total_LoanAmount, "<p>",
           "<p>", "Loan Approval Counts: ", data_input_ordered()$Count_Loans, "<p>",
-          "<p>", "Loan Approval Counts: ", data_input_ordered()$Total_JobsRetained, "<p>",
+          "<p>", "Total Jobs Retained: ", data_input_ordered()$Total_JobsRetained, "<p>",
           sep = "")
     
   })
 
   output$mymap <- renderLeaflet(
-    leaflet() %>%
-      setView(lng = 119.4, lat = 36.7, zoom = 4) %>%
-      addProviderTiles(providers$Stamen.Toner) %>%
-      addPolygons( data = getMapData(zb1), # FIX THIS INPUT VALUE, HOW DO I GIVE IT MY CUSTOM POLYGONS? alternatively use map = argument. Also find way to convert LargeSpatialPolygonsDataFrame to map in leaflet
+    leaflet(zb1) %>% # may be able to remove zb1 once specific polygons are implemented
+      setView(lng = -122.42, lat = 37.77, zoom = 12) %>%
+      addProviderTiles(providers$Stamen.Toner) %>% # color values also not working
+      addPolygons(  # FIX THIS INPUT VALUE, HOW DO I GIVE IT MY CUSTOM POLYGONS? alternatively use map = argument. Also find way to convert LargeSpatialPolygonsDataFrame to map in leaflet
                    weight = 1,
                    smoothFactor = 0.5,
                    color = "white",
@@ -136,6 +142,7 @@ server <- function(input, output){
 
 shinyApp(ui = ui, server = server)
 
+# figure out how to add leafletProxy to speed up execution
 
 
 
