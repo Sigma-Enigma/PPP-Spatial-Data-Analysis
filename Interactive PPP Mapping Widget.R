@@ -28,7 +28,7 @@ dat1 <- subset(dat1, subset = (Zip > 89119 & Zip < 96214) ) # removes bad zip co
 ########
 # need to aggregate data by zip code regions using dplyr
 zip.aggregate.dat.1 <- dat1 %>%
-  group_by(Zip, Date) %>% # use ", DateApproved" after Zip to include another grouping factor and lower compute time
+  group_by(Zip) %>% # use ", DateApproved" after Zip to include another grouping factor and lower compute time
   summarize(Total_LoanAmount = sum(as.numeric(LoanAmount)),
             Count_Loans = n(), 
             Total_JobsRetained = sum(as.numeric(JobsRetained)),
