@@ -28,7 +28,7 @@ dat1 <- subset(dat1, subset = (Zip > 89119 & Zip < 96214) ) # removes bad zip co
 ########
 # need to aggregate data by zip code regions using dplyr
 zip.aggregate.dat.1 <- dat1 %>%
-  group_by(Zip) %>% # use ", DateApproved" after Zip to include another grouping factor and lower compute time
+  group_by(Zip, DateApproved) %>% # use ", DateApproved" after Zip to include another grouping factor and lower compute time
   summarize(Total_LoanAmount = sum(as.numeric(LoanAmount)),
             Count_Loans = n(), 
             Total_JobsRetained = sum(as.numeric(JobsRetained)),
@@ -39,13 +39,15 @@ zip.aggregate.dat.1$Zip <- as.factor(zip.aggregate.dat.1$Zip)
 
 
 # shapefiles
-zipbounds1 <- readOGR( dsn = "/Users/ryanarellano/Downloads/tl_2019_us_zcta510", layer = "tl_2019_us_zcta510")
+zipbounds1 <- readOGR( dsn = "/Users/ryanarellano/Downloads/tl_2019_us_zcta510", layer = "tl_2019_us_zcta510", verbose = TRUE) # cache this file
 
 # grab unique california zip codes
 ca.zl <- unique(dat1$Zip) # gets list of unique zip codes from PPP data
 
 # subsets CA zipcode shapefiles
 zb1 <- subset(zipbounds1, (zipbounds1$ZCTA5CE10) %in% ca.zl ) # same as states variable
+
+zb1 <- spTransform(zb1, CRS("+init=epsg:4326")) #fix CRS
 
 zip.aggregate.dat.1 <- zip.aggregate.dat.1[order(match(zip.aggregate.dat.1$Zip, zb1$ZCTA5CE10)), ]
 
@@ -82,9 +84,9 @@ server <- function(input, output){
       filter( DateApproved >= input$DateApproved[1] ) %>%
       filter( DateApproved <= input$DateApproved[2] ) %>%
       group_by( Zip ) %>%
-      summarize(Total_LoanAmount = sum(as.numeric(LoanAmount)),
+      summarize(Total_LoanAmount = sum(as.numeric(Total_LoanAmount)),
                 Count_Loans = n(), 
-                Total_JobsRetained = sum(as.numeric(JobsRetained)),
+                Total_JobsRetained = sum(as.numeric(Total_JobsRetained)),
                 # proportion of each business type
       )
     zip.aggregate.dat.1$Zip <- as.factor(zip.aggregate.dat.1$Zip) # try removing this if it breaks it
@@ -105,9 +107,9 @@ server <- function(input, output){
 
   output$mymap <- renderLeaflet(
     leaflet() %>%
-      setView(lng = 119.4, lat = 36.7, ) %>%
+      setView(lng = 119.4, lat = 36.7, zoom = 4) %>%
       addProviderTiles(providers$Stamen.Toner) %>%
-      addPolygons( data = zb1,
+      addPolygons( data = getMapData(zb1), # FIX THIS INPUT VALUE, HOW DO I GIVE IT MY CUSTOM POLYGONS? alternatively use map = argument. Also find way to convert LargeSpatialPolygonsDataFrame to map in leaflet
                    weight = 1,
                    smoothFactor = 0.5,
                    color = "white",
