@@ -37,6 +37,7 @@ zip.aggregate.dat.1 <- dat1 %>%
             # proportion of each business type
   )
 ########
+# figure out which in zip.aggregate.dat.1 are NOT in zb1
 
 
 # shapefiles
@@ -46,12 +47,19 @@ zipbounds1 <- readOGR( dsn = "/Users/ryanarellano/Downloads/tl_2019_us_zcta510",
 ca.zl <- unique(dat1$Zip) # gets list of unique zip codes from PPP data
 
 # subsets CA zipcode shapefiles
-zb1 <- subset(zipbounds1, (zipbounds1$ZCTA5CE10) %in% ca.zl ) # same as states variable
+zb1 <- subset(zipbounds1, (zipbounds1$ZCTA5CE10) %in% ca.zl ) # same as states variable #needed to do an inner join
 # cache this
 
+length(zip.aggregate.dat.1$Zip)
+# trying to subset tabular zip data
+zip.aggregate.dat.1 <- subset(zip.aggregate.dat.1, zip.aggregate.dat.1$Zip %in% zipbounds1$ZCTA5CE10 )
+length(zip.aggregate.dat.1$Zip)
+
 # re-order data,  reason for polygon display bug??????
-zip.aggregate.dat.1 <- zip.aggregate.dat.1[order(match(zip.aggregate.dat.1$Zip, zb1$ZCTA5CE10)), ]
+# zip.aggregate.dat.1 <- zip.aggregate.dat.1[order(match(zip.aggregate.dat.1$Zip, zb1$ZCTA5CE10)), ]
 # cache this
+
+dat1 <- subset(dat1, dat1$Zip %in% zipbounds1$ZCTA5CE10 )
 
 zip.aggregate.dat.2 <- dat1 %>%
   group_by(Zip) %>% # use ", DateApproved" after Zip to include another grouping factor and lower compute time
@@ -64,7 +72,7 @@ zip.aggregate.dat.2 <- dat1 %>%
 
 # INCLUDE BUTTONS TO SHIFT BETWEEN LAYERS, ALSO REMEMBER TO INCLUDE DIFFERENT COLOR PALATTES FOR EACH LAYER
 # This will need to be converted into a function later
-pal <- colorBin("RdYlBu", domain = c(min(zip.aggregate.dat.2$Total_LoanAmount), max(zip.aggregate.dat.2$Total_LoanAmount) ), na.color = "#808080") # make domain a variable for each layer indicating the maxed tabulated value for the entire dataset (all times) OR that changes color scale based on size of time frame
+pal <- colorBin("RdYlBu", reverse = TRUE, domain = c(min(zip.aggregate.dat.2$Total_LoanAmount), max(zip.aggregate.dat.2$Total_LoanAmount) ), na.color = "#808080") # make domain a variable for each layer indicating the maxed tabulated value for the entire dataset (all times) OR that changes color scale based on size of time frame
 
 ######### DATA PREP END ########
 
@@ -108,7 +116,7 @@ server <- function(input, output){
       )
     
   })
-  
+  #need to match each zb1 polygon with corresponding input_data row (need to reorder and omit extraneous zips!)
   data_input_ordered <- reactive({ 
     data_input()[order(match(data_input()$Zip, zb1$ZCTA5CE10)), ] # 16:06  CHECK THIS FUNCTION LIKELY SOURCE OF BUG
     })
