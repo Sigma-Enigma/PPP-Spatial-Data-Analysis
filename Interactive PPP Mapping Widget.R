@@ -16,63 +16,67 @@ require(DT)
 # loading and cleaning data test
 dat1 <- read.csv2(file = "/Users/ryanarellano/Downloads/All Data by State/California/PPP Data up to 150k - CA.csv", header = TRUE, sep = "," )
 
+# changing blank businessType label to unanswered (perhaps use NA?)
 levels(dat1$BusinessType)[1] <- "Unanswered"
 
+# fixing column data format
 dat1$DateApproved <- as.Date(dat1$DateApproved, format = "%m/%d/%Y")
 dat1$LoanAmount <- as.numeric(dat1$LoanAmount)
 dat1$JobsRetained <- as.numeric(dat1$JobsRetained)
 
-#cleaning bad zips when you aggregate data, consider just including them and cutting this cleaning technique (this assumes they were mislabled and missing from the proper state files. If they are not then they may be double counted, check )
 
+
+# cleaning bad zips when you aggregate data
 dat1 <- subset(dat1, subset = (Zip > 89119 & Zip < 96214) ) # removes bad zip codes out of california
 dat1$Zip <- as.factor(dat1$Zip)
+# NOTE: consider just including them and cutting this cleaning technique (this assumes they were mislabled and missing from the proper state files. If they are not then they may be double counted, check )
 
 ########
-# need to aggregate data by zip code regions using dplyr
+# aggregates data by zip code regions using dplyr grouped by Zip and DateApproved
 zip.aggregate.dat.1 <- dat1 %>%
   group_by(Zip, DateApproved) %>% # use ", DateApproved" after Zip to include another grouping factor and lower compute time
   summarize(Total_LoanAmount = sum(as.numeric(LoanAmount)),
             Count_Loans = n(), 
             Total_JobsRetained = sum(as.numeric(JobsRetained)),
             # proportion of each business type
+            # more layers here
   )
 ########
-# figure out which in zip.aggregate.dat.1 are NOT in zb1
 
 
-# shapefiles
+# load shapefiles
 zipbounds1 <- readOGR( dsn = "/Users/ryanarellano/Downloads/tl_2019_us_zcta510", layer = "tl_2019_us_zcta510", verbose = TRUE)
 
 # grab unique california zip codes
 ca.zl <- unique(dat1$Zip) # gets list of unique zip codes from PPP data
 
-# subsets CA zipcode shapefiles
+# subsets CA zipcode shapefiles to figure out which in zip.aggregate.dat.1 are NOT in zb1
 zb1 <- subset(zipbounds1, (zipbounds1$ZCTA5CE10) %in% ca.zl ) # same as states variable #needed to do an inner join
 # cache this
 
-length(zip.aggregate.dat.1$Zip)
-# trying to subset tabular zip data
-zip.aggregate.dat.1 <- subset(zip.aggregate.dat.1, zip.aggregate.dat.1$Zip %in% zipbounds1$ZCTA5CE10 )
-length(zip.aggregate.dat.1$Zip)
-
-# re-order data,  reason for polygon display bug??????
-# zip.aggregate.dat.1 <- zip.aggregate.dat.1[order(match(zip.aggregate.dat.1$Zip, zb1$ZCTA5CE10)), ]
+# subset zip and date grouped tabular zip data to figure out which in zip.aggregate.dat.1 are NOT in zb1
+zip.aggregate.dat.1 <- subset(zip.aggregate.dat.1, zip.aggregate.dat.1$Zip %in% zb1$ZCTA5CE10 )
 # cache this
 
-dat1 <- subset(dat1, dat1$Zip %in% zipbounds1$ZCTA5CE10 )
+# subset zip grouped to figure out which in dat1 are NOT in zb1
+dat1 <- subset(dat1, dat1$Zip %in% zb1$ZCTA5CE10 )
+# cache this
 
+# aggregates data by zip code regions using dplyr grouped by Zip only this time
 zip.aggregate.dat.2 <- dat1 %>%
-  group_by(Zip) %>% # use ", DateApproved" after Zip to include another grouping factor and lower compute time
+  group_by(Zip) %>%
   summarize(Total_LoanAmount = sum(as.numeric(LoanAmount)),
             Count_Loans = n(), 
             Total_JobsRetained = sum(as.numeric(JobsRetained)),
             # proportion of each business type
+            # more layers here
   )
 # cache this
 
-# INCLUDE BUTTONS TO SHIFT BETWEEN LAYERS, ALSO REMEMBER TO INCLUDE DIFFERENT COLOR PALATTES FOR EACH LAYER
-# This will need to be converted into a function later
-pal <- colorBin("RdYlBu", reverse = TRUE, domain = c(min(zip.aggregate.dat.2$Total_LoanAmount), max(zip.aggregate.dat.2$Total_LoanAmount) ), na.color = "#808080") # make domain a variable for each layer indicating the maxed tabulated value for the entire dataset (all times) OR that changes color scale based on size of time frame
+# NOTE: INCLUDE BUTTONS TO SHIFT BETWEEN LAYERS, ALSO REMEMBER TO INCLUDE DIFFERENT COLOR PALATTES FOR EACH LAYER
+# NOTE: This will need to be converted into a function later
+pal <- colorBin("RdYlBu", reverse = TRUE, domain = c(min(zip.aggregate.dat.2$Total_LoanAmount), max(zip.aggregate.dat.2$Total_LoanAmount) ), na.color = "#808080") 
+# NOTE: make domain a variable for each layer indicating the maxed tabulated value for the entire dataset (all times) OR that changes color scale based on size of time frame
 
 ######### DATA PREP END ########
 
@@ -80,11 +84,12 @@ pal <- colorBin("RdYlBu", reverse = TRUE, domain = c(min(zip.aggregate.dat.2$Tot
 
 ######### DASHBOARD WIDGET BEGIN ############
 
+# define UI for dashboard
 ui <- dashboardPage(
   skin = "red",
   dashboardHeader( title = "PPP Loan Dashboard"),
   dashboardSidebar(
-    sliderInput( "DateApproved", label = "Date Range", # figure out what format this slider Input is outputting data (input$DateApproved)
+    sliderInput( "DateApproved", label = "Date Range",
       min = min(dat1$DateApproved),
       max = max(dat1$DateApproved),
       value = c(min(dat1$DateApproved), max(dat1$DateApproved)), # Also consider making the imput data a dynamic variable!!
@@ -101,9 +106,10 @@ ui <- dashboardPage(
   )
 
 
-# Define server logic to build map widget  ## problem is below here
+# Define server input/output logic to pass map data and build map widget
 server <- function(input, output){
   data_input <- reactive({
+    # use dplyr to aggregate data and create tables to pass to polygons 
     zip.aggregate.dat.1 %>%
       filter( DateApproved >= input$DateApproved[1] ) %>%
       filter( DateApproved <= input$DateApproved[2] ) %>%
@@ -116,11 +122,13 @@ server <- function(input, output){
       )
     
   })
-  #need to match each zb1 polygon with corresponding input_data row (need to reorder and omit extraneous zips!)
+  
+  # re-order data for label values so they line up nicely with zipboundary polygons table order
   data_input_ordered <- reactive({ 
-    data_input()[order(match(data_input()$Zip, zb1$ZCTA5CE10)), ] # 16:06  CHECK THIS FUNCTION LIKELY SOURCE OF BUG
+    data_input()[order(match(data_input()$Zip, zb1$ZCTA5CE10)), ] 
     })
   
+  # set label variables to pass data 
   labels <- reactive({
     paste("<p>", "Zip Code Region: ", data_input_ordered()$Zip, "<p>",
           "<p>", "Total Loan Amount: ", format(data_input_ordered()$Total_LoanAmount, nsmall = 0, big.mark = ","), "<p>",
@@ -130,46 +138,41 @@ server <- function(input, output){
     
   })
 
-  output$mymap <- renderLeaflet( # for some reason only the first row in my LSPDF is being plotted
-    leaflet(zb1) %>% # may be able to remove zb1 once specific polygons are implemented
-      setView(lng = -122.42, lat = 37.77, zoom = 10) %>%
-      addProviderTiles(providers$CartoDB.Positron) %>% # color values also not working
+  # build leaflet map
+  output$mymap <- renderLeaflet( 
+    leaflet(zb1) %>% 
+      setView(lng = -122.42, lat = 37.77, zoom = 11) %>%
+      addProviderTiles(providers$CartoDB.Positron) %>% 
       addPolygons( weight = 1,
                    smoothFactor = 0.5,
                    color = "white",
-                   fillOpacity = 0.35,
+                   fillOpacity = 0.25,
                    fillColor = pal(data_input_ordered()$Total_LoanAmount), 
                    highlightOptions = highlightOptions(
                      weight = 5,
                      color = "#ffffff",
                      dashArray = NULL,
-                     fillOpacity = 0.7,
+                     fillOpacity = 0.5,
                      bringToFront = TRUE
-                     #, dashArray = NULL # problem with only first polygon plotting
-                     #https://stackoverflow.com/questions/51275767/only-the-first-polygon-is-showing-up-in-leaflet-2-0-1-choropleth-plot/51275789
-                     # https://github.com/rstudio/leaflet/issues/574
                    ),
                    label = lapply(labels(), HTML)) %>%
-      addLegend(pal = pal, #will need to be adjusted later with dropdown layers... also not displaying...
-                values = data_input_ordered()$Total_LoanAmount,
+      addLegend(pal = pal, # will need to be adjusted later with dropdown layers
+                values = ~data_input_ordered()$Total_LoanAmount, # dynamically change this when changing dates too!
                 opacity = 0.25,
-                position = "topright")
+                position = "topright",
+                title = "Total Loan Amount") # dynamically change this value when adding more layers
     
-  ) # build your leaflet inside this function and refer to the reactive data above! 19:04
+  ) 
   
+  # render map
   output$summarytable <- renderDataTable(data_input())
   
 }
 
-### ALL POLYGONS PLOTTING BUT OBJECTS ARE MIS-ORDERED!!! Likely issue with shapefile data. FIX AND THEN DONE
-
-# need to add a layer color legend!!!
-
+# execute shinyApp 
 shinyApp(ui = ui, server = server)
 
 ######## DASHBOARD WIDGET END ##########
 
-# figure out how to add leafletProxy to speed up execution
-
-
-
+# figure out how to use leafletProxy to speed up execution
+# add additional data layers
