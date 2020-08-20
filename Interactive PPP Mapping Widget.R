@@ -122,22 +122,24 @@ server <- function(input, output){
     
   })
 
-  output$mymap <- renderLeaflet(
+  output$mymap <- renderLeaflet( # for some reason only the first row in my LSPDF is being plotted
     leaflet(zb1) %>% # may be able to remove zb1 once specific polygons are implemented
-      setView(lng = -122.42, lat = 37.77, zoom = 6) %>%
+      setView(lng = -122.42, lat = 37.77, zoom = 10) %>%
       addProviderTiles(providers$CartoDB.Positron) %>% # color values also not working
-      addPolygons( # FIX THIS INPUT VALUE, HOW DO I GIVE IT MY CUSTOM POLYGONS? alternatively use map = argument. Also find way to convert LargeSpatialPolygonsDataFrame to map in leaflet... NOT ALL POLYGONS RENDERING!!!
-                   weight = 1,
+      addPolygons( weight = 1,
                    smoothFactor = 0.5,
                    color = "white",
-                   fillOpacity = 0.8,
+                   fillOpacity = 0.35,
                    fillColor = pal(data_input_ordered()$Total_LoanAmount), 
                    highlightOptions = highlightOptions(
                      weight = 5,
                      color = "#ffffff",
-                     dashArray = "",
+                     dashArray = NULL,
                      fillOpacity = 0.7,
                      bringToFront = TRUE
+                     #, dashArray = NULL # problem with only first polygon plotting
+                     #https://stackoverflow.com/questions/51275767/only-the-first-polygon-is-showing-up-in-leaflet-2-0-1-choropleth-plot/51275789
+                     # https://github.com/rstudio/leaflet/issues/574
                    ),
                    label = lapply(labels(), HTML)) %>%
       addLegend(pal = pal, #will need to be adjusted later with dropdown layers... also not displaying...
@@ -150,6 +152,8 @@ server <- function(input, output){
   output$summarytable <- renderDataTable(data_input())
   
 }
+
+### ALL POLYGONS PLOTTING BUT OBJECTS ARE MIS-ORDERED!!! Likely issue with shapefile data. FIX AND THEN DONE
 
 # need to add a layer color legend!!!
 
