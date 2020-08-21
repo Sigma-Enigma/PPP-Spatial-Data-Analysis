@@ -1,37 +1,50 @@
 require(rgdal)
 require(dplyr)
 require(RColorBrewer)
-require(tigris) # great library that makes DLing shapefiles and doing geo_joins easy!
 require(shiny)
 require(shinydashboard)
 require(leaflet)
 require(DT)
+require(tigris) # BONUS: great library that makes DLing shapefiles and doing geo_joins easy!
 
 
 # NOTE: Perhaps redo this widget but instead grouped at the state level, rather than zip level (note will need to merge all state tables), this would render much more quickly and might be more interesting to a general audience.
 
 
+# other data: 
+# https://www.sba.gov/about-sba/sba-performance/open-government/digital-sba/open-data/open-data-sources
+# https://www.sba.gov/article/2020/jul/13/sba-treasury-announce-release-paycheck-protection-program-loan-data
+
+
 ########## DATA PREP BEGIN ###########
 
+
+# Data information: https://www.sba.gov/sites/default/files/2020-07/PPP%20Loan%20Data%20-%20Key%20Aspects-508.pdf
+# Tabular data source: https://home.treasury.gov/policy-issues/cares-act/assistance-for-small-businesses/sba-paycheck-protection-program-loan-level-data
+# go to box website to DL individual states for loan amounts under 150k, or loans over 150k for all states
+
+
 # loading and cleaning data test
-dat1 <- read.csv2(file = "/Users/ryanarellano/Downloads/All Data by State/California/PPP Data up to 150k - CA.csv", header = TRUE, sep = "," )
+dat1 <- read.csv2(file = file.choose(), header = TRUE, sep = "," )
+# dat1 <- read.csv2(file = "/Users/ryanarellano/Downloads/All Data by State/California/PPP Data up to 150k - CA.csv", header = TRUE, sep = "," )
 
 # changing blank businessType label to unanswered (perhaps use NA?)
 levels(dat1$BusinessType)[1] <- "Unanswered"
 
-# fixing column data format
+# fixing column data formats
 dat1$DateApproved <- as.Date(dat1$DateApproved, format = "%m/%d/%Y")
 dat1$LoanAmount <- as.numeric(dat1$LoanAmount)
 dat1$JobsRetained <- as.numeric(dat1$JobsRetained)
 
 
 
-# cleaning bad zips when you aggregate data
+# cleaning bad zips not in california 
 dat1 <- subset(dat1, subset = (Zip > 89119 & Zip < 96214) ) # removes bad zip codes out of california
+# changing zip data format to match with shapefile zip format later
 dat1$Zip <- as.factor(dat1$Zip)
 # NOTE: consider just including them and cutting this cleaning technique (this assumes they were mislabled and missing from the proper state files. If they are not then they may be double counted, check )
 
-########
+
 # aggregates data by zip code regions using dplyr grouped by Zip and DateApproved
 zip.aggregate.dat.1 <- dat1 %>%
   group_by(Zip, DateApproved) %>% # use ", DateApproved" after Zip to include another grouping factor and lower compute time
@@ -41,16 +54,18 @@ zip.aggregate.dat.1 <- dat1 %>%
             # proportion of each business type
             # more layers here
   )
-########
 
+# Shapefile documentation: https://www.census.gov/programs-surveys/geography/technical-documentation/complete-technical-documentation/tiger-geo-line.html
+# Shapefile data location: https://www.census.gov/cgi-bin/geo/shapefiles/index.php
 
-# load shapefiles
-zipbounds1 <- readOGR( dsn = "/Users/ryanarellano/Downloads/tl_2019_us_zcta510", layer = "tl_2019_us_zcta510", verbose = TRUE)
+# load shapefiles; TIP: use tigris to load a different shapefile!
+zipbounds1 <- readOGR( dsn = file.choose(), layer = "tl_2019_us_zcta510", verbose = TRUE)
+# zipbounds1 <- readOGR( dsn = "/Users/ryanarellano/Downloads/tl_2019_us_zcta510", layer = "tl_2019_us_zcta510", verbose = TRUE)
 
 # grab unique california zip codes
-ca.zl <- unique(dat1$Zip) # gets list of unique zip codes from PPP data
+ca.zl <- unique(dat1$Zip) # gets vector of unique zip codes from PPP data
 
-# subsets CA zipcode shapefiles to figure out which in zip.aggregate.dat.1 are NOT in zb1
+# subsets CA zipcode shapefiles to remove shapefile components not in ca.zl vector
 zb1 <- subset(zipbounds1, (zipbounds1$ZCTA5CE10) %in% ca.zl ) # same as states variable #needed to do an inner join
 # cache this
 
@@ -138,10 +153,10 @@ server <- function(input, output){
     
   })
 
-  # build leaflet map
+  # build and render leaflet map
   output$mymap <- renderLeaflet( 
     leaflet(zb1) %>% 
-      setView(lng = -122.42, lat = 37.77, zoom = 11) %>%
+      setView(lng = -118.01, lat = 34.00, zoom = 9) %>%
       addProviderTiles(providers$CartoDB.Positron) %>% 
       addPolygons( weight = 1,
                    smoothFactor = 0.5,
@@ -164,8 +179,8 @@ server <- function(input, output){
     
   ) 
   
-  # render map
-  output$summarytable <- renderDataTable(data_input())
+  # build and render data table
+  output$summarytable <- renderDataTable( format.data.frame(data_input(), big.mark = ",") )
   
 }
 
@@ -174,5 +189,6 @@ shinyApp(ui = ui, server = server)
 
 ######## DASHBOARD WIDGET END ##########
 
+# dynamically adjust legend color scale (and polygonFill) when changing date ranges
 # figure out how to use leafletProxy to speed up execution
 # add additional data layers
