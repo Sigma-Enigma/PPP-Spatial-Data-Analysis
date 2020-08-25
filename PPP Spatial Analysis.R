@@ -107,17 +107,16 @@ sort(as.numeric((zb1@data$Jobs_Retained_Per_10k_Lent)), decreasing = FALSE)[20:3
 
 
 a <- ggplot(data = zb1@data, aes(zb1@data$Jobs_Retained_Per_10k_Lent) ) 
-a + geom_histogram( aes( y=..count..), col = "cyan4", size = 0.75, fill = "cyan3", alpha = 0.4, breaks = seq(from=0, to=40, length.out = 41) ) + geom_density( aes(y = ..count..), col="indianred2", fill = "indianred2", size =0.5, alpha = 0.1, adjust = 1) + scale_x_continuous(breaks=seq(from=0, to=40, length.out = 21), labels = seq(from=0, to=40, length.out = 21), limits = c(0,40)) + labs(title = " Histogram: Count of Zip Regions Retaining X Jobs Per $10,000 USD Loaned", y = "Y = Count of Zip Regions", x = " X = # of Jobs Retained Per $10,000 Loaned")
+a + geom_histogram( aes( y=..count..), col = "cyan4", size = 0.75, fill = "cyan3", alpha = 0.4, breaks = seq(from=0, to=40, length.out = 41) ) + geom_density( aes(y = ..count..), col="indianred2", fill = "indianred2", size =0.5, alpha = 0.1, adjust = 1) + scale_x_continuous(breaks=seq(from=0, to=40, length.out = 21), labels = seq(from=0, to=40, length.out = 21), limits = c(0,40)) + labs(title = " Histogram: Count of Zip Regions Retaining X Jobs Per $10,000 USD Loaned", y = "Y = Count of Zip Regions", x = " X = # of Jobs Retained Per $10,000 Loaned") #note density does not need to be adjusted because full range of values is used for calculation
+
+a + geom_histogram( aes( y=..count..), col = "cyan4", size = 0.75, fill = "cyan3", alpha = 0.4, breaks = seq(from=0, to=4, length.out = 41) ) + geom_density( aes(y = ..count..*.1), col="indianred2", fill = "indianred2", size =0.5, alpha = 0.1, adjust = .5) + scale_x_continuous(breaks=seq(from=0, to=4, length.out = 21), labels = seq(from=0, to=4, length.out = 21), limits = c(0,4)) + labs(title = " Histogram (Truncated): Count of Zip Regions Retaining X Jobs Per $10,000 USD Loaned", y = "Y = Count of Zip Regions", x = " X = # of Jobs Retained Per $10,000 Loaned")
 
 b <- ggplot(data = zb1@data, aes(zb1@data$Total_LoanAmount) ) 
-b + geom_histogram( aes( y=..count..), col = "cyan4", size = 0.75, fill = "cyan3", alpha = 0.4, breaks = seq(from=0, to=100, length.out = 41) ) + scale_x_continuous(breaks=seq(from=0, to=100, length.out = 21), labels = seq(from=0, to=100, length.out = 21), limits = c(0,100)) + geom_density( aes(y = ..count..), col="indianred2", fill = "indianred2", size =0.5, alpha = 0.1, adjust = 1) + labs(title = "Count of Zip Regions with X Total Loaned in Millions USD", y = "Y = Count of Zip Regions", x = " X = # Total Loaned in Millions USD")
+b + geom_histogram( aes( y=..count..), col = "cyan4", size = 0.75, fill = "cyan3", alpha = 0.4, breaks = seq(from=0, to=100, length.out = 41) ) + scale_x_continuous(breaks=seq(from=0, to=100, length.out = 21), labels = seq(from=0, to=100, length.out = 21), limits = c(0,100)) + geom_density( aes(y = ..count..*2.5), col="indianred2", fill = "indianred2", size =0.5, alpha = 0.1, adjust = 0.25) + labs(title = "Histogram: Count of Zip Regions with X Total Loaned in Millions USD", y = "Y = Count of Zip Regions", x = " X = # Total Loaned in Millions USD")
 
-# geom_density()
-a + geom_histogram(aes(y = ..density.., color = sex, fill = sex),  alpha = 0.4, position = "identity") + geom_density(aes(color = sex), size =1)
-+ geom_density(col="blue")
+b + geom_histogram( aes( y=..count..), col = "cyan4", size = 0.75, fill = "cyan3", alpha = 0.4, breaks = seq(from=0, to=25, length.out = 41) ) + scale_x_continuous(breaks=seq(from=0, to=25, length.out = 21), labels = seq(from=0, to=25, length.out = 21), limits = c(0,25)) + geom_density( aes(y = ..count..*.65), col="indianred2", fill = "indianred2", size =0.5, alpha = 0.1, adjust = 0.125) + labs(title = "Histogram (Truncated): Count of Zip Regions with X Total Loaned in Millions USD", y = "Y = Count of Zip Regions", x = " X = # Total Loaned in Millions USD")
 
 
-hist(sort(zb1@data$Jobs_Retained_Per_10k_Lent, decreasing = TRUE)[-(1:13)], breaks = 40, main = "Histogram of Jobs Retained \n Per $10,000 USD Lent (Truncated)", xlab = "Jobs Retained Per $10,000 Lent")
 
 # second plot with jobs saved to mills spent ratio
 pal3 <- c("#bdbdbd", brewer.pal(9, "OrRd")) # sets color palatte for legend
