@@ -5,12 +5,8 @@ require(dplyr)
 require(gpclib)
 require(RColorBrewer)
 require(ggplot2)
-require(reactable)
+require(formattable)
 # require(tigris) # great library that makes DLing shapefiles and doing geo_joins easy!
-
-
-
-# I forgot which specific libraries these commands use so I just loaded all my spatial and plotting libraries
 
 
 ##### LOAD AND AGGREGATE PPP DATA #####
@@ -101,26 +97,34 @@ spplot2
 dev.off()
 
 
-
+# Histogram of jobs retained per $10k loaned
 a <- ggplot(data = zb1@data, aes(zb1@data$Jobs_Retained_Per_10k_Lent) ) 
 
+# full histogram
 a + geom_histogram( aes( y=..count..), col = "cyan4", size = 0.75, fill = "cyan3", alpha = 0.4, breaks = seq(from=0, to=40, length.out = 41) ) + geom_density( aes(y = ..count..), col="indianred2", fill = "indianred2", size =0.5, alpha = 0.1, adjust = 1) + scale_x_continuous(breaks=seq(from=0, to=40, length.out = 21), labels = seq(from=0, to=40, length.out = 21), limits = c(0,40)) + labs(title = " Histogram: Count of Zip Regions Retaining X Jobs Per $10,000 USD Loaned", y = "Y = Count of Zip Regions", x = " X = # of Jobs Retained Per $10,000 Loaned") #note density does not need to be adjusted because full range of values is used for calculation
 
+# truncated histogram
 a + geom_histogram( aes( y=..count..), col = "cyan4", size = 0.75, fill = "cyan3", alpha = 0.4, breaks = seq(from=0, to=4, length.out = 41) ) + geom_density( aes(y = ..count..*.1), col="indianred2", fill = "indianred2", size =0.5, alpha = 0.1, adjust = .5) + scale_x_continuous(breaks=seq(from=0, to=4, length.out = 21), labels = seq(from=0, to=4, length.out = 21), limits = c(0,4)) + labs(title = " Histogram (Truncated): Count of Zip Regions Retaining X Jobs Per $10,000 USD Loaned", y = "Y = Count of Zip Regions", x = " X = # of Jobs Retained Per $10,000 Loaned")
 
 
-
+# Histogram of total loaned 
 b <- ggplot(data = zb1@data, aes(zb1@data$Total_LoanAmount) ) 
 
+# full histogram
 b + geom_histogram( aes( y=..count..), col = "cyan4", size = 0.75, fill = "cyan3", alpha = 0.4, breaks = seq(from=0, to=100, length.out = 41) ) + scale_x_continuous(breaks=seq(from=0, to=100, length.out = 21), labels = seq(from=0, to=100, length.out = 21), limits = c(0,100)) + geom_density( aes(y = ..count..*2.5), col="indianred2", fill = "indianred2", size =0.5, alpha = 0.1, adjust = 0.25) + labs(title = "Histogram: Count of Zip Regions with X Total Loaned in Millions USD", y = "Y = Count of Zip Regions", x = " X = # Total Loaned in Millions USD")
 
+# truncated histogram
 b + geom_histogram( aes( y=..count..), col = "cyan4", size = 0.75, fill = "cyan3", alpha = 0.4, breaks = seq(from=0, to=25, length.out = 41) ) + scale_x_continuous(breaks=seq(from=0, to=25, length.out = 21), labels = seq(from=0, to=25, length.out = 21), limits = c(0,25)) + geom_density( aes(y = ..count..*.65), col="indianred2", fill = "indianred2", size =0.5, alpha = 0.1, adjust = 0.125) + labs(title = "Histogram (Truncated): Count of Zip Regions with X Total Loaned in Millions USD", y = "Y = Count of Zip Regions", x = " X = # Total Loaned in Millions USD")
 
 
+
+
+# add column of jobs retained per $10k loaned (but as factors)
 zb1@data <- zb1@data %>% mutate(category=cut(Jobs_Retained_Per_10k_Lent, breaks=c(-.001, 0.001, 0.4, 0.8, 1.2, 1.6, 2, 4, 8, 40), labels=c("=0", "0-0.4", "0.4-0.8", "0.8-1.2", "1.2-1.6", "1.6-2", "2-4", "4-8", "40+") ) )
 zb1@data$category <- as.numeric(zb1@data$category)
 zb1$category <- as.numeric(zb1$category)
 
+# jobs retained to $10k spent ratio static plot (using factors)
 pal3 <- c("#bdbdbd", brewer.pal(7, "OrRd")) # sets color palatte for legend
 spplot3 <- spplot(zb1, "category", main = list(label = "Jobs Retained Per $10,000 Lent", cex = 1), col.regions=pal3, labels = list(cex = 15), par.settings = list(fontsize=list(text=100)), at = c(1,2,3,4,5,6,7,8,9), names.attr = as.character(c("=0", "0-0.4", "0.4-0.8", "0.8-1.2", "1.2-1.6", "1.6-2", "2-4", "4-8", "40+")) ) # set labels after # also check out "formula" parameter
 
@@ -136,7 +140,7 @@ spplot3
 dev.off()
 
 
-# second plot with jobs saved to mills spent ratio
+# jobs retained to $10k spent ratio static plot (using numeric values)
 pal4 <- c("#bdbdbd", brewer.pal(9, "OrRd")) # sets color palatte for legend
 #breakpoints <- as.numeric(quantile(zb1@data$Jobs_Retained_Per_10k_Lent, probs = seq(from=0, to=1, length.out = 11)))
 spplot4 <- spplot(zb1, "Jobs_Retained_Per_10k_Lent", main = list(label = "Jobs Retained Per $10,000 Lent", cex = 1), col.regions=pal4, at = c(-.001, 0.001, 0.4, 0.8, 1.2, 1.6, 2, 4, 8, 40), labels = list(cex = 15), par.settings = list(fontsize=list(text=100))) # stores plot code
@@ -165,34 +169,23 @@ options(scipen = 0) # sets scientific switch setting to default value
 
 
 
-# things to investigate
-# By Zip-Region
-# Top 5 jobs saved/ Loan Amount
-# Bottom 5 Jobs Saved / Loan Amount
-
-# Integrate other spatial data?
-
-# Total count of loans under $1000
-# Total count of loans under $100
-
 
 # Tabular analysis
 # Loans, Loan Amount, Jobs Saved, Jobs Saved/Loan Amount ratio by industry
 # Jobs Saved/Loan Amount ratio by business type
 
-
 dat2 <- dat1
 
-# try to combine levels using dplyr notation
 f <-  levels(dat1$BusinessType) %>%
   fct_collapse( "Other" = c( "Cooperative", "Employee Stock Ownership Plan(ESOP)", "Joint Venture", "Rollover as Business Start-Ups (ROB", "Tenant in Common", "Trust", "Professional Association") ) %>%
-  fct_collapse( "Non-Profit Organization" = c("Non-Profit Organization", "Non-Profit Childcare Center") )
+  fct_collapse( "Non-Profit Organization" = c("Non-Profit Organization", "Non-Profit Childcare Center") ) %>%
+  fct_collapse( "Limited Liability Company" = "Limited  Liability Company(LLC)")
             # proportion of each business type
 
 levels(dat2$BusinessType) <- f
 
 
-
+# Lender Table
 zip.aggregate.2 <- dat2 %>%
   group_by(Lender) %>%
   summarize(Total_LoanAmount = sum(as.numeric(LoanAmount), na.rm = TRUE),
@@ -200,10 +193,14 @@ zip.aggregate.2 <- dat2 %>%
             Total_JobsRetained = sum(as.numeric(JobsRetained), na.rm = TRUE)
   )
 
-zip.aggregate.2$Total_LoanAmount_In_Millions <- zip.aggregate.2$Total_LoanAmount / 1000000
-zip.aggregate.2$Jobs_Retained_Per_10k_Lent <- (zip.aggregate.2$Total_JobsRetained / zip.aggregate.2$Total_LoanAmount) *10000
+zip.aggregate.2$Total_LoanAmount_In_Millions <- round( (zip.aggregate.2$Total_LoanAmount / 1000000), 0)
+zip.aggregate.2$Jobs_Retained_Per_10k_Lent <- round( (zip.aggregate.2$Total_JobsRetained / zip.aggregate.2$Total_LoanAmount)*10000 , 2)
 
+names(zip.aggregate.2) <- c("Lender Name", "Total Amount Loaned", "Number of Loans", "Jobs Retained", "Total Amount Loaned (Millions)", "Jobs Retained Per $10,000 Loaned")
 
+View(zip.aggregate.2[order(zip.aggregate.2$`Total Amount Loaned`, decreasing = TRUE)[1:50],] )
+
+# Business Type Table
 zip.aggregate.3 <- dat2 %>%
   group_by(BusinessType) %>%
   summarize(Total_LoanAmount = sum(as.numeric(LoanAmount), na.rm = TRUE),
@@ -211,14 +208,47 @@ zip.aggregate.3 <- dat2 %>%
             Total_JobsRetained = sum(as.numeric(JobsRetained), na.rm = TRUE)
   )
 
-zip.aggregate.3$Total_LoanAmount_In_Millions <- zip.aggregate.3$Total_LoanAmount / 1000000
-zip.aggregate.3$Jobs_Retained_Per_10k_Lent <- (zip.aggregate.3$Total_JobsRetained / zip.aggregate.3$Total_LoanAmount) *10000
+zip.aggregate.3$Total_LoanAmount_In_Millions <- round( (zip.aggregate.3$Total_LoanAmount / 1000000), 0)
+zip.aggregate.3$Jobs_Retained_Per_10k_Lent <- round( (zip.aggregate.3$Total_JobsRetained / zip.aggregate.3$Total_LoanAmount)*10000 , 2)
+
+names(zip.aggregate.3) <- c("Business Type", "Total Amount Loaned", "Number of Loans", "Jobs Retained", "Total Amount Loaned (Millions)", "Jobs Retained Per $10,000 Loaned")
+
+View(zip.aggregate.3)
+
+# NAICS Table here
 
 
+##### START PRETTY TABLES ######
 
-# Simplify Business Type Groupings into these factors
-# independent contractor + self employed, LLC and LLP, Coporation, Subchapter S Corp, Sole Prop, Non-profits, Others
+# Pretty Lender name table
+LenderTable <- zip.aggregate.2[, c("Lender Name", "Total Amount Loaned (Millions)", "Jobs Retained", "Jobs Retained Per $10,000 Loaned", "Number of Loans")]
 
+LenderTable <- LenderTable[order(LenderTable$`Total Amount Loaned (Millions)` , decreasing = TRUE)[1:25],]
+
+formattable(LenderTable, list(
+  area(col = `Total Amount Loaned (Millions)`) ~ normalize_bar("pink", 0.2),
+  area(col = `Jobs Retained`) ~ normalize_bar("lightblue", 0.2),
+  area(col = `Jobs Retained Per $10,000 Loaned`) ~ normalize_bar("lightgreen", 0.2),
+  area(col = `Number of Loans`) ~ normalize_bar("orange", 0.2)
+))
+
+
+# Pretty Business type table
+BusinessTypeTable <- zip.aggregate.3[, c("Business Type", "Total Amount Loaned (Millions)", "Jobs Retained", "Jobs Retained Per $10,000 Loaned", "Number of Loans")]
+
+BusinessTypeTable <- BusinessTypeTable[order(BusinessTypeTable$`Total Amount Loaned (Millions)` , decreasing = TRUE),]
+View(BusinessTypeTable)
+
+formattable(BusinessTypeTable, list(
+  area(col = `Total Amount Loaned (Millions)`) ~ normalize_bar("pink", 0.2),
+  area(col = `Jobs Retained`) ~ normalize_bar("lightblue", 0.2),
+  area(col = `Jobs Retained Per $10,000 Loaned`) ~ normalize_bar("lightgreen", 0.2),
+  area(col = `Number of Loans`) ~ normalize_bar("orange", 0.2)
+))
+  
+# NAICS Code (Industry) type table
+
+###### END PRETTY TABLES ######
 
 
 
@@ -236,6 +266,16 @@ zip.aggregate.3$Jobs_Retained_Per_10k_Lent <- (zip.aggregate.3$Total_JobsRetaine
 # the aggregate sum of loans
 
 
+# things to investigate
+# By Zip-Region
+# Top 5 jobs saved/ Loan Amount
+# Bottom 5 Jobs Saved / Loan Amount
+
+# Integrate other spatial data?
+
+# Total count of loans under $1000
+# Total count of loans under $100
+
 
 # interesting articles
 #https://www.marketwatch.com/story/over-500000-businesses-got-ppp-loans-but-are-listed-as-retaining-zero-jobs-treasury-department-data-show-2020-07-08#:~:text=A%20MarketWatch%20analysis%20of%20the,%245%20million%20and%20%2410%20million.
@@ -245,3 +285,5 @@ zip.aggregate.3$Jobs_Retained_Per_10k_Lent <- (zip.aggregate.3$Total_JobsRetaine
 # https://www.magesblog.com/post/2012-12-04-changing-colours-and-legends-in-lattice/
 
 # https://blog.rstudio.com/2020/04/08/great-looking-tables-gt-0-2/
+
+# formattable tutorial: https://renkun-ken.github.io/formattable/
