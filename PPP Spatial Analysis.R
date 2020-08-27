@@ -5,6 +5,7 @@ require(dplyr)
 require(gpclib)
 require(RColorBrewer)
 require(ggplot2)
+require(reactable)
 # require(tigris) # great library that makes DLing shapefiles and doing geo_joins easy!
 
 
@@ -83,10 +84,9 @@ zb1@data$Jobs_Retained_Per_10k_Lent <- zb1@data$Total_JobsRetained / (zb1@data$T
 
 ##### BEGIN PLOT CONSTRUCTION #####
 
-
-pal2 <- c( "#bdbdbd", brewer.pal(7, "OrRd") ) # sets color palatte for legend
+pal2 <- brewer.pal(8, "OrRd") # sets color palatte for legend
 options(scipen = 10) # makes plotting less likely to use scientific notation (bigger range needed)
-spplot2 <- spplot(zb1, "Total_LoanAmount", main = list(label = "Total Loan Amounts, in Millions", cex = 1), col.regions=pal2, at = c(0,0.001,20,40,60,80,100,120,140), labels = list(cex = 15), par.settings = list(fontsize=list(text=100)) ) # stores plot code; ######### !!!!!make values in these ranges factors, order and then plot them!!!!! #########
+spplot2 <- spplot(zb1, "Total_LoanAmount", main = list(label = "Total Loan Amounts, in Millions", cex = 1), col.regions=pal2, at = c(0,2.5, 5,10,20,40,60,80,100), labels = list(cex = 15), par.settings = list(fontsize=list(text=100)) ) # stores plot code; ######### !!!!!make values in these ranges factors, order and then plot them!!!!! #########
 
 
 # Generate and save plot in separate file (it excecutes way faster this way) ###
@@ -102,28 +102,27 @@ dev.off()
 
 
 
-sort(as.numeric((zb1@data$Jobs_Retained_Per_10k_Lent)), decreasing = TRUE)[1:20]
-sort(as.numeric((zb1@data$Jobs_Retained_Per_10k_Lent)), decreasing = FALSE)[20:35]
-
-
 a <- ggplot(data = zb1@data, aes(zb1@data$Jobs_Retained_Per_10k_Lent) ) 
+
 a + geom_histogram( aes( y=..count..), col = "cyan4", size = 0.75, fill = "cyan3", alpha = 0.4, breaks = seq(from=0, to=40, length.out = 41) ) + geom_density( aes(y = ..count..), col="indianred2", fill = "indianred2", size =0.5, alpha = 0.1, adjust = 1) + scale_x_continuous(breaks=seq(from=0, to=40, length.out = 21), labels = seq(from=0, to=40, length.out = 21), limits = c(0,40)) + labs(title = " Histogram: Count of Zip Regions Retaining X Jobs Per $10,000 USD Loaned", y = "Y = Count of Zip Regions", x = " X = # of Jobs Retained Per $10,000 Loaned") #note density does not need to be adjusted because full range of values is used for calculation
 
 a + geom_histogram( aes( y=..count..), col = "cyan4", size = 0.75, fill = "cyan3", alpha = 0.4, breaks = seq(from=0, to=4, length.out = 41) ) + geom_density( aes(y = ..count..*.1), col="indianred2", fill = "indianred2", size =0.5, alpha = 0.1, adjust = .5) + scale_x_continuous(breaks=seq(from=0, to=4, length.out = 21), labels = seq(from=0, to=4, length.out = 21), limits = c(0,4)) + labs(title = " Histogram (Truncated): Count of Zip Regions Retaining X Jobs Per $10,000 USD Loaned", y = "Y = Count of Zip Regions", x = " X = # of Jobs Retained Per $10,000 Loaned")
 
+
+
 b <- ggplot(data = zb1@data, aes(zb1@data$Total_LoanAmount) ) 
+
 b + geom_histogram( aes( y=..count..), col = "cyan4", size = 0.75, fill = "cyan3", alpha = 0.4, breaks = seq(from=0, to=100, length.out = 41) ) + scale_x_continuous(breaks=seq(from=0, to=100, length.out = 21), labels = seq(from=0, to=100, length.out = 21), limits = c(0,100)) + geom_density( aes(y = ..count..*2.5), col="indianred2", fill = "indianred2", size =0.5, alpha = 0.1, adjust = 0.25) + labs(title = "Histogram: Count of Zip Regions with X Total Loaned in Millions USD", y = "Y = Count of Zip Regions", x = " X = # Total Loaned in Millions USD")
 
 b + geom_histogram( aes( y=..count..), col = "cyan4", size = 0.75, fill = "cyan3", alpha = 0.4, breaks = seq(from=0, to=25, length.out = 41) ) + scale_x_continuous(breaks=seq(from=0, to=25, length.out = 21), labels = seq(from=0, to=25, length.out = 21), limits = c(0,25)) + geom_density( aes(y = ..count..*.65), col="indianred2", fill = "indianred2", size =0.5, alpha = 0.1, adjust = 0.125) + labs(title = "Histogram (Truncated): Count of Zip Regions with X Total Loaned in Millions USD", y = "Y = Count of Zip Regions", x = " X = # Total Loaned in Millions USD")
 
 
+zb1@data <- zb1@data %>% mutate(category=cut(Jobs_Retained_Per_10k_Lent, breaks=c(-.001, 0.001, 0.4, 0.8, 1.2, 1.6, 2, 4, 8, 40), labels=c("=0", "0-0.4", "0.4-0.8", "0.8-1.2", "1.2-1.6", "1.6-2", "2-4", "4-8", "40+") ) )
+zb1@data$category <- as.numeric(zb1@data$category)
+zb1$category <- as.numeric(zb1$category)
 
-# second plot with jobs saved to mills spent ratio
-pal3 <- c("#bdbdbd", brewer.pal(9, "OrRd")) # sets color palatte for legend
-breakpoints <- as.numeric(quantile(zb1@data$Jobs_Retained_Per_10k_Lent, probs = seq(from=0, to=1, length.out = 11)))
-spplot3 <- spplot(zb1, "Jobs_Retained_Per_10k_Lent", main = list(label = "Jobs Retained Per $10,000 Lent", cex = 1), col.regions=pal3, at = breakpoints, labels = list(cex = 15), par.settings = list(fontsize=list(text=100))) # stores plot code
-# get legend to show character values at set ranges between, perhaps transform to factors?? Yes do this
-
+pal3 <- c("#bdbdbd", brewer.pal(7, "OrRd")) # sets color palatte for legend
+spplot3 <- spplot(zb1, "category", main = list(label = "Jobs Retained Per $10,000 Lent", cex = 1), col.regions=pal3, labels = list(cex = 15), par.settings = list(fontsize=list(text=100)), at = c(1,2,3,4,5,6,7,8,9), names.attr = as.character(c("=0", "0-0.4", "0.4-0.8", "0.8-1.2", "1.2-1.6", "1.6-2", "2-4", "4-8", "40+")) ) # set labels after # also check out "formula" parameter
 
 # Generate and save plot in separate file (it excecutes way faster this way) ###
 pdf(file = "/Users/ryanarellano/Desktop/R Plots/CA_Loan_Map_Job_Per_10K_Lent.pdf",   # The directory you want to save the file in
@@ -132,6 +131,26 @@ pdf(file = "/Users/ryanarellano/Desktop/R Plots/CA_Loan_Map_Job_Per_10K_Lent.pdf
 
 # Step 2: Create the plot with R code
 spplot3
+
+# Step 3: Run dev.off() to create the file!
+dev.off()
+
+
+# second plot with jobs saved to mills spent ratio
+pal4 <- c("#bdbdbd", brewer.pal(9, "OrRd")) # sets color palatte for legend
+#breakpoints <- as.numeric(quantile(zb1@data$Jobs_Retained_Per_10k_Lent, probs = seq(from=0, to=1, length.out = 11)))
+spplot4 <- spplot(zb1, "Jobs_Retained_Per_10k_Lent", main = list(label = "Jobs Retained Per $10,000 Lent", cex = 1), col.regions=pal4, at = c(-.001, 0.001, 0.4, 0.8, 1.2, 1.6, 2, 4, 8, 40), labels = list(cex = 15), par.settings = list(fontsize=list(text=100))) # stores plot code
+# get legend to show character values at set ranges between, perhaps transform to factors?? Yes do this
+# set factor breaks from c(0, 0.000001, 0.4, 0.8, 1.2, 1.6, 2, 4, 8, 40) c(0, >0, >0.4, >0.8, >1.2, >1.6, >2, >4, >8, <40)
+# is this plot off??
+
+# Generate and save plot in separate file (it excecutes way faster this way) ###
+pdf(file = "/Users/ryanarellano/Desktop/R Plots/CA_Loan_Map_Job_Per_10K_Lent_OLD.pdf",   # The directory you want to save the file in
+    width = 100, # The width of the plot in inches
+    height = 100) # The height of the plot in inches
+
+# Step 2: Create the plot with R code
+spplot4
 
 # Step 3: Run dev.off() to create the file!
 dev.off()
@@ -158,12 +177,50 @@ options(scipen = 0) # sets scientific switch setting to default value
 
 
 # Tabular analysis
-# Jobs Saved/Loan Amount ratio by industry
+# Loans, Loan Amount, Jobs Saved, Jobs Saved/Loan Amount ratio by industry
 # Jobs Saved/Loan Amount ratio by business type
+
+
+dat2 <- dat1
+
+# try to combine levels using dplyr notation
+f <-  levels(dat1$BusinessType) %>%
+  fct_collapse( "Other" = c( "Cooperative", "Employee Stock Ownership Plan(ESOP)", "Joint Venture", "Rollover as Business Start-Ups (ROB", "Tenant in Common", "Trust", "Professional Association") ) %>%
+  fct_collapse( "Non-Profit Organization" = c("Non-Profit Organization", "Non-Profit Childcare Center") )
+            # proportion of each business type
+
+levels(dat2$BusinessType) <- f
+
+
+
+zip.aggregate.2 <- dat2 %>%
+  group_by(Lender) %>%
+  summarize(Total_LoanAmount = sum(as.numeric(LoanAmount), na.rm = TRUE),
+            Count_Loans = n(),
+            Total_JobsRetained = sum(as.numeric(JobsRetained), na.rm = TRUE)
+  )
+
+zip.aggregate.2$Total_LoanAmount_In_Millions <- zip.aggregate.2$Total_LoanAmount / 1000000
+zip.aggregate.2$Jobs_Retained_Per_10k_Lent <- (zip.aggregate.2$Total_JobsRetained / zip.aggregate.2$Total_LoanAmount) *10000
+
+
+zip.aggregate.3 <- dat2 %>%
+  group_by(BusinessType) %>%
+  summarize(Total_LoanAmount = sum(as.numeric(LoanAmount), na.rm = TRUE),
+            Count_Loans = n(), 
+            Total_JobsRetained = sum(as.numeric(JobsRetained), na.rm = TRUE)
+  )
+
+zip.aggregate.3$Total_LoanAmount_In_Millions <- zip.aggregate.3$Total_LoanAmount / 1000000
+zip.aggregate.3$Jobs_Retained_Per_10k_Lent <- (zip.aggregate.3$Total_JobsRetained / zip.aggregate.3$Total_LoanAmount) *10000
+
 
 
 # Simplify Business Type Groupings into these factors
 # independent contractor + self employed, LLC and LLP, Coporation, Subchapter S Corp, Sole Prop, Non-profits, Others
+
+
+
 
 # NAICS code (industry ) group them and label them
 # make dropdowns for more granular NAICS code levels
@@ -180,4 +237,11 @@ options(scipen = 0) # sets scientific switch setting to default value
 
 
 
+# interesting articles
+#https://www.marketwatch.com/story/over-500000-businesses-got-ppp-loans-but-are-listed-as-retaining-zero-jobs-treasury-department-data-show-2020-07-08#:~:text=A%20MarketWatch%20analysis%20of%20the,%245%20million%20and%20%2410%20million.
 
+# https://www.statmethods.net/RiA/lattice.pdf
+
+# https://www.magesblog.com/post/2012-12-04-changing-colours-and-legends-in-lattice/
+
+# https://blog.rstudio.com/2020/04/08/great-looking-tables-gt-0-2/
