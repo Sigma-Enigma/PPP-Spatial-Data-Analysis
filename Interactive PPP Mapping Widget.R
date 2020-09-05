@@ -8,7 +8,7 @@ require(DT)
 require(tigris) # BONUS: great library that makes DLing shapefiles and doing geo_joins easy!
 
 
-# NOTE: Perhaps redo this widget but instead grouped at the state level, rather than zip level (note will need to merge all state tables), this would render much more quickly and might be more interesting to a general audience.
+# NOTE: Consider reproduing this widget but instead at state level, rather than zip level (note will need to merge all state tables), this would render much more quickly and might be more interesting to a general audience.
 
 
 # other data: 
@@ -21,8 +21,7 @@ require(tigris) # BONUS: great library that makes DLing shapefiles and doing geo
 
 # Data information: https://www.sba.gov/sites/default/files/2020-07/PPP%20Loan%20Data%20-%20Key%20Aspects-508.pdf
 # Tabular data source: https://home.treasury.gov/policy-issues/cares-act/assistance-for-small-businesses/sba-paycheck-protection-program-loan-level-data
-# go to box website to DL individual states for loan amounts under 150k, or loans over 150k for all states
-
+# go to Box website to DL individual states for loan amounts under 150k, or loans over 150k for all states
 
 # loading and cleaning data test
 dat1 <- read.csv2(file = file.choose(), header = TRUE, sep = "," )
@@ -33,30 +32,55 @@ levels(dat1$BusinessType)[1] <- "Unanswered"
 
 # fixing column data formats
 dat1$DateApproved <- as.Date(dat1$DateApproved, format = "%m/%d/%Y")
-dat1$LoanAmount <- as.numeric(dat1$LoanAmount)
-dat1$JobsRetained <- as.numeric(dat1$JobsRetained)
-
+dat1$LoanAmount <- as.numeric(as.character(dat1$LoanAmount))
+dat1$JobsRetained <- as.numeric(as.character(dat1$JobsRetained))
+dat1$IndustryNumber <- substr(as.character(dat1$NAICSCode), start = 1, stop = 2)
 
 
 # cleaning bad zips not in california 
 dat1 <- subset(dat1, subset = (Zip > 89119 & Zip < 96214) ) # removes bad zip codes out of california
 # changing zip data format to match with shapefile zip format later
 dat1$Zip <- as.factor(dat1$Zip)
-# NOTE: consider just including them and cutting this cleaning technique (this assumes they were mislabled and missing from the proper state files. If they are not then they may be double counted, check )
+
+# download 2-6 digit 2017 NAICS Code File 
+#https://www.census.gov/eos/www/naics/downloadables/downloadables.html
+NaicsCodeData <- read.csv2( file = "/Users/ryanarellano/Downloads/2-6 digit_2017_Codes.csv", header = TRUE, sep = ",")
+NaicsCodeDataClean <- NaicsCodeData[which(nchar(as.character(NaicsCodeData$X2017.NAICS.US...Code)) == 2),]
+NaicsCodeDataClean <- NaicsCodeDataClean[,2:3]
+names(NaicsCodeDataClean) <- c("IndustryNumber", "IndustryName")
+NaicsCodeDataClean$IndustryNumber <- as.character(NaicsCodeDataClean$IndustryNumber)
+NaicsCodeDataClean$IndustryName <- as.character(NaicsCodeDataClean$IndustryName)
+
+
+# Add missing NAICS industry rows
+NaicsCodeDataClean <- NaicsCodeDataClean %>% add_row( IndustryNumber = "99", IndustryName = "Unclassified", .after = 17) 
+NaicsCodeDataClean <- NaicsCodeDataClean %>% add_row( IndustryNumber = "49", IndustryName = "Transportation & Warehousing", .after = 5)
+NaicsCodeDataClean <- NaicsCodeDataClean %>% add_row( IndustryNumber = "48", IndustryName = "Transportation & Warehousing", .after = 5)
+NaicsCodeDataClean <- NaicsCodeDataClean %>% add_row( IndustryNumber = "45", IndustryName = "Retail Trade", .after = 5)
+NaicsCodeDataClean <- NaicsCodeDataClean %>% add_row( IndustryNumber = "44", IndustryName = "Retail Trade", .after = 5)
+NaicsCodeDataClean <- NaicsCodeDataClean %>% add_row( IndustryNumber = "33", IndustryName = "Manufacturing", .after = 4)
+NaicsCodeDataClean <- NaicsCodeDataClean %>% add_row( IndustryNumber = "32", IndustryName = "Manufacturing", .after = 4)
+NaicsCodeDataClean <- NaicsCodeDataClean %>% add_row( IndustryNumber = "31", IndustryName = "Manufacturing", .after = 4)
+NaicsCodeDataClean <- NaicsCodeDataClean %>% add_row( IndustryNumber = NA, IndustryName = "Data Not Available", .after = 25)
+
+
+MergedPppData <- left_join(x = dat1, y = NaicsCodeDataClean, by = "IndustryNumber")
+
 
 
 # aggregates data by zip code regions using dplyr grouped by Zip and DateApproved
-zip.aggregate.dat.1 <- dat1 %>%
+zip.aggregate.dat.1 <- MergedPppData %>%
   group_by(Zip, DateApproved) %>% # use ", DateApproved" after Zip to include another grouping factor and lower compute time
-  summarize(Total_LoanAmount = sum(as.numeric(LoanAmount)),
+  summarize(Total_LoanAmount = sum(as.numeric(LoanAmount), na.rm = TRUE),
             Count_Loans = n(), 
-            Total_JobsRetained = sum(as.numeric(JobsRetained)),
+            Total_JobsRetained = sum(as.numeric(JobsRetained), na.rm = TRUE)
             # proportion of each business type
             # more layers here
   )
 
+
 # Shapefile documentation: https://www.census.gov/programs-surveys/geography/technical-documentation/complete-technical-documentation/tiger-geo-line.html
-# Shapefile data location: https://www.census.gov/cgi-bin/geo/shapefiles/index.php
+# Shapefile data location: https://www.census.gov/cgi-bin/geo/shapefiles/index.php  # SELECT DOWNLOAD ZIP CODE REGION
 
 # load shapefiles; TIP: use tigris to load a different shapefile!
 zipbounds1 <- readOGR( dsn = file.choose(), layer = "tl_2019_us_zcta510", verbose = TRUE)
@@ -67,26 +91,47 @@ ca.zl <- unique(dat1$Zip) # gets vector of unique zip codes from PPP data
 
 # subsets CA zipcode shapefiles to remove shapefile components not in ca.zl vector
 zb1 <- subset(zipbounds1, (zipbounds1$ZCTA5CE10) %in% ca.zl ) # same as states variable #needed to do an inner join
-# cache this
+# cache this for webserver
+
+FinalCaZipList <- unique(zb1$ZCTA5CE10)
 
 # subset zip and date grouped tabular zip data to figure out which in zip.aggregate.dat.1 are NOT in zb1
 zip.aggregate.dat.1 <- subset(zip.aggregate.dat.1, zip.aggregate.dat.1$Zip %in% zb1$ZCTA5CE10 )
-# cache this
+# cache this for webserver
 
 # subset zip grouped to figure out which in dat1 are NOT in zb1
 dat1 <- subset(dat1, dat1$Zip %in% zb1$ZCTA5CE10 )
-# cache this
+# cache this for webserver
+
+FinalCaZipList <- unique(dat1$Zip)
+
+# Zip code census data
+# https://github.com/Ro-Data/Ro-Census-Summaries-By-Zipcode 
+CaDemographicData <- read.delim2( file = "census_demo.txt", header = TRUE, sep = "\t")
+CaDemographicData <- subset(CaDemographicData, ZCTA5 %in% FinalCaZipList)
+CaDemographicData <- CaDemographicData[,1:2]
+
+CaEconomicData <- read.delim2( file = "census_econ.txt", header = TRUE, sep = "\t")
+CaEconomicData <- subset(CaEconomicData, ZCTA5 %in% FinalCaZipList)
+CaEconomicData <- CaEconomicData[,1:3]
+
+# Zip code organizational data
+# https://www.census.gov/data/datasets/2018/econ/cbp/2018-cbp.html
+
+CaOrganizationData <- read.delim2( file = "zbp18totals.txt", header = TRUE, sep = ",")
+CaOrganizationData <- subset(CaOrganizationData, zip %in% FinalCaZipList)
+# note missing about 31 zip code regions
 
 # aggregates data by zip code regions using dplyr grouped by Zip only this time
 zip.aggregate.dat.2 <- dat1 %>%
   group_by(Zip) %>%
-  summarize(Total_LoanAmount = sum(as.numeric(LoanAmount)),
+  summarize(Total_LoanAmount = sum(as.numeric(LoanAmount), na.rm = TRUE),
             Count_Loans = n(), 
-            Total_JobsRetained = sum(as.numeric(JobsRetained)),
+            Total_JobsRetained = sum(as.numeric(JobsRetained), na.rm = TRUE)
             # proportion of each business type
             # more layers here
   )
-# cache this
+# cache this for webserver
 
 # NOTE: INCLUDE BUTTONS TO SHIFT BETWEEN LAYERS, ALSO REMEMBER TO INCLUDE DIFFERENT COLOR PALATTES FOR EACH LAYER
 # NOTE: This will need to be converted into a function later
@@ -126,12 +171,12 @@ server <- function(input, output){
   data_input <- reactive({
     # use dplyr to aggregate data and create tables to pass to polygons 
     zip.aggregate.dat.1 %>%
-      filter( DateApproved >= input$DateApproved[1] ) %>%
-      filter( DateApproved <= input$DateApproved[2] ) %>%
-      group_by( Zip ) %>%
+      filter( DateApproved >= input$DateApproved[1] ) %>% # lower slider bound
+      filter( DateApproved <= input$DateApproved[2] ) %>% # upper slider bound
+      group_by( Zip ) %>% # create data table given slider inputs
       summarize(Total_LoanAmount = sum(as.numeric(Total_LoanAmount), na.rm = TRUE),
                 Count_Loans = n(), 
-                Total_JobsRetained = sum(as.numeric(Total_JobsRetained), na.rm = TRUE),
+                Total_JobsRetained = sum(as.numeric(Total_JobsRetained), na.rm = TRUE)
                 # add proportion of each business type
                 # add proportion of each industry type NAICS
       )
@@ -156,9 +201,9 @@ server <- function(input, output){
   # build and render leaflet map
   output$mymap <- renderLeaflet( 
     leaflet(zb1) %>% 
-      setView(lng = -118.01, lat = 34.00, zoom = 9) %>%
-      addProviderTiles(providers$CartoDB.Positron) %>% 
-      addPolygons( weight = 1,
+      setView(lng = -118.01, lat = 34.00, zoom = 9) %>% # sets initial map starting view
+      addProviderTiles(providers$CartoDB.Positron) %>%  # adding background base map
+      addPolygons( weight = 1, # adding shapefiles
                    smoothFactor = 0.5,
                    color = "white",
                    fillOpacity = 0.25,
