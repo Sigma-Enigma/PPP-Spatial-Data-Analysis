@@ -24,56 +24,56 @@ require(tigris) # BONUS: great library that makes DLing shapefiles and doing geo
 # go to Box website to DL individual states for loan amounts under 150k, or loans over 150k for all states
 
 # loading and cleaning data test
-dat1 <- read.csv2(file = file.choose(), header = TRUE, sep = "," )
-# dat1 <- read.csv2(file = "/Users/ryanarellano/Downloads/All Data by State/California/PPP Data up to 150k - CA.csv", header = TRUE, sep = "," )
+# pppDataCalifornia <- read.csv2(file = file.choose(), header = TRUE, sep = "," )
+ pppDataCalifornia <- read.csv2(file = "/Users/ryanarellano/Downloads/All Data by State/California/PPP Data up to 150k - CA.csv", header = TRUE, sep = "," )
 
 # changing blank businessType label to unanswered (perhaps use NA?)
-levels(dat1$BusinessType)[1] <- "Unanswered"
+levels(pppDataCalifornia$BusinessType)[1] <- "Unanswered"
 
 # fixing column data formats
-dat1$DateApproved <- as.Date(dat1$DateApproved, format = "%m/%d/%Y")
-dat1$LoanAmount <- as.numeric(as.character(dat1$LoanAmount))
-dat1$JobsRetained <- as.numeric(as.character(dat1$JobsRetained))
-dat1$IndustryNumber <- substr(as.character(dat1$NAICSCode), start = 1, stop = 2)
+pppDataCalifornia$DateApproved <- as.Date(pppDataCalifornia$DateApproved, format = "%m/%d/%Y")
+pppDataCalifornia$LoanAmount <- as.numeric(as.character(pppDataCalifornia$LoanAmount))
+pppDataCalifornia$JobsRetained <- as.numeric(as.character(pppDataCalifornia$JobsRetained))
+pppDataCalifornia$IndustryNumber <- substr(as.character(pppDataCalifornia$NAICSCode), start = 1, stop = 2)
 
 
 # cleaning bad zips not in california 
-dat1 <- subset(dat1, subset = (Zip > 89119 & Zip < 96214) ) # removes bad zip codes out of california
+pppDataCalifornia <- subset(pppDataCalifornia, subset = (Zip > 89119 & Zip < 96214) ) # removes bad zip codes not in cali
 # changing zip data format to match with shapefile zip format later
-dat1$Zip <- as.factor(dat1$Zip)
+pppDataCalifornia$Zip <- as.factor(pppDataCalifornia$Zip)
 
 # download 2-6 digit 2017 NAICS Code File 
 #https://www.census.gov/eos/www/naics/downloadables/downloadables.html
-NaicsCodeData <- read.csv2( file = "/Users/ryanarellano/Downloads/2-6 digit_2017_Codes.csv", header = TRUE, sep = ",")
-NaicsCodeDataClean <- NaicsCodeData[which(nchar(as.character(NaicsCodeData$X2017.NAICS.US...Code)) == 2),]
-NaicsCodeDataClean <- NaicsCodeDataClean[,2:3]
-names(NaicsCodeDataClean) <- c("IndustryNumber", "IndustryName")
-NaicsCodeDataClean$IndustryNumber <- as.character(NaicsCodeDataClean$IndustryNumber)
-NaicsCodeDataClean$IndustryName <- as.character(NaicsCodeDataClean$IndustryName)
+naicsCodeData <- read.csv2( file = "/Users/ryanarellano/Downloads/2-6 digit_2017_Codes.csv", header = TRUE, sep = ",")
+naicsCodeDataClean <- naicsCodeData[which(nchar(as.character(naicsCodeData$X2017.NAICS.US...Code)) == 2),]
+naicsCodeDataClean <- naicsCodeDataClean[,2:3]
+names(naicsCodeDataClean) <- c("IndustryNumber", "IndustryName")
+naicsCodeDataClean$IndustryNumber <- as.character(naicsCodeDataClean$IndustryNumber)
+naicsCodeDataClean$IndustryName <- as.character(naicsCodeDataClean$IndustryName)
 
 
 # Add missing NAICS industry rows
-NaicsCodeDataClean <- NaicsCodeDataClean %>% add_row( IndustryNumber = "99", IndustryName = "Unclassified", .after = 17) 
-NaicsCodeDataClean <- NaicsCodeDataClean %>% add_row( IndustryNumber = "49", IndustryName = "Transportation & Warehousing", .after = 5)
-NaicsCodeDataClean <- NaicsCodeDataClean %>% add_row( IndustryNumber = "48", IndustryName = "Transportation & Warehousing", .after = 5)
-NaicsCodeDataClean <- NaicsCodeDataClean %>% add_row( IndustryNumber = "45", IndustryName = "Retail Trade", .after = 5)
-NaicsCodeDataClean <- NaicsCodeDataClean %>% add_row( IndustryNumber = "44", IndustryName = "Retail Trade", .after = 5)
-NaicsCodeDataClean <- NaicsCodeDataClean %>% add_row( IndustryNumber = "33", IndustryName = "Manufacturing", .after = 4)
-NaicsCodeDataClean <- NaicsCodeDataClean %>% add_row( IndustryNumber = "32", IndustryName = "Manufacturing", .after = 4)
-NaicsCodeDataClean <- NaicsCodeDataClean %>% add_row( IndustryNumber = "31", IndustryName = "Manufacturing", .after = 4)
-NaicsCodeDataClean <- NaicsCodeDataClean %>% add_row( IndustryNumber = NA, IndustryName = "Data Not Available", .after = 25)
+naicsCodeDataClean <- naicsCodeDataClean %>% add_row( IndustryNumber = "99", IndustryName = "Unclassified", .after = 17) 
+naicsCodeDataClean <- naicsCodeDataClean %>% add_row( IndustryNumber = "49", IndustryName = "Transportation & Warehousing", .after = 5)
+naicsCodeDataClean <- naicsCodeDataClean %>% add_row( IndustryNumber = "48", IndustryName = "Transportation & Warehousing", .after = 5)
+naicsCodeDataClean <- naicsCodeDataClean %>% add_row( IndustryNumber = "45", IndustryName = "Retail Trade", .after = 5)
+naicsCodeDataClean <- naicsCodeDataClean %>% add_row( IndustryNumber = "44", IndustryName = "Retail Trade", .after = 5)
+naicsCodeDataClean <- naicsCodeDataClean %>% add_row( IndustryNumber = "33", IndustryName = "Manufacturing", .after = 4)
+naicsCodeDataClean <- naicsCodeDataClean %>% add_row( IndustryNumber = "32", IndustryName = "Manufacturing", .after = 4)
+naicsCodeDataClean <- naicsCodeDataClean %>% add_row( IndustryNumber = "31", IndustryName = "Manufacturing", .after = 4)
+naicsCodeDataClean <- naicsCodeDataClean %>% add_row( IndustryNumber = NA, IndustryName = "Data Not Available", .after = 25)
 
 
-MergedPppData <- left_join(x = dat1, y = NaicsCodeDataClean, by = "IndustryNumber")
+mergedPppData <- left_join(x = pppDataCalifornia, y = naicsCodeDataClean, by = "IndustryNumber")
 
 
 
 # aggregates data by zip code regions using dplyr grouped by Zip and DateApproved
-zip.aggregate.dat.1 <- MergedPppData %>%
+zipAndDateAggregatedData <- mergedPppData %>%
   group_by(Zip, DateApproved) %>% # use ", DateApproved" after Zip to include another grouping factor and lower compute time
-  summarize(Total_LoanAmount = sum(as.numeric(LoanAmount), na.rm = TRUE),
-            Count_Loans = n(), 
-            Total_JobsRetained = sum(as.numeric(JobsRetained), na.rm = TRUE)
+  summarize(Total_Amount_Loaned = sum(as.numeric(LoanAmount), na.rm = TRUE),
+            Total_Loans_Approved = n(), 
+            Total_Jobs_Retained = sum(as.numeric(JobsRetained), na.rm = TRUE)
             # proportion of each business type
             # more layers here
   )
@@ -83,59 +83,55 @@ zip.aggregate.dat.1 <- MergedPppData %>%
 # Shapefile data location: https://www.census.gov/cgi-bin/geo/shapefiles/index.php  # SELECT DOWNLOAD ZIP CODE REGION
 
 # load shapefiles; TIP: use tigris to load a different shapefile!
-zipbounds1 <- readOGR( dsn = file.choose(), layer = "tl_2019_us_zcta510", verbose = TRUE)
-# zipbounds1 <- readOGR( dsn = "/Users/ryanarellano/Downloads/tl_2019_us_zcta510", layer = "tl_2019_us_zcta510", verbose = TRUE)
+# zipBoundaryShapefile <- readOGR( dsn = file.choose(), layer = "tl_2019_us_zcta510", verbose = TRUE)
+ zipBoundaryShapefile <- readOGR( dsn = "/Users/ryanarellano/Downloads/tl_2019_us_zcta510", layer = "tl_2019_us_zcta510", verbose = TRUE)
 
 # grab unique california zip codes
-ca.zl <- unique(dat1$Zip) # gets vector of unique zip codes from PPP data
+caZipList <- unique(pppDataCalifornia$Zip) # gets vector of unique zip codes from PPP data
 
-# subsets CA zipcode shapefiles to remove shapefile components not in ca.zl vector
-zb1 <- subset(zipbounds1, (zipbounds1$ZCTA5CE10) %in% ca.zl ) # same as states variable #needed to do an inner join
+# subsets CA zipcode shapefiles to remove shapefile components not in caZipList vector
+finalZipBoundaryShapefile <- subset(zipBoundaryShapefile, (zipBoundaryShapefile$ZCTA5CE10) %in% caZipList ) # same as states variable #needed to do an inner join
 # cache this for webserver
 
-FinalCaZipList <- unique(zb1$ZCTA5CE10)
-
-# subset zip and date grouped tabular zip data to figure out which in zip.aggregate.dat.1 are NOT in zb1
-zip.aggregate.dat.1 <- subset(zip.aggregate.dat.1, zip.aggregate.dat.1$Zip %in% zb1$ZCTA5CE10 )
+# subset zip and date grouped tabular zip data to figure out which in zipAndDateAggregatedData are NOT in finalZipBoundaryShapefile
+zipAndDateAggregatedData <- subset(zipAndDateAggregatedData, zipAndDateAggregatedData$Zip %in% finalZipBoundaryShapefile$ZCTA5CE10 )
 # cache this for webserver
 
-# subset zip grouped to figure out which in dat1 are NOT in zb1
-dat1 <- subset(dat1, dat1$Zip %in% zb1$ZCTA5CE10 )
+# subset zip grouped to figure out which in pppDataCalifornia are NOT in finalZipBoundaryShapefile
+pppDataCalifornia <- subset(pppDataCalifornia, pppDataCalifornia$Zip %in% finalZipBoundaryShapefile$ZCTA5CE10 )
 # cache this for webserver
 
-FinalCaZipList <- unique(dat1$Zip)
+finalCaZipList <- unique(pppDataCalifornia$Zip)
 
 # Zip code census data
 # https://github.com/Ro-Data/Ro-Census-Summaries-By-Zipcode 
-CaDemographicData <- read.delim2( file = "census_demo.txt", header = TRUE, sep = "\t")
-CaDemographicData <- subset(CaDemographicData, ZCTA5 %in% FinalCaZipList)
-CaDemographicData <- CaDemographicData[,1:2]
+caDemographicData <- read.delim2( file = "/Users/ryanarellano/Downloads/census_demo.txt", header = TRUE, sep = "\t")
+caDemographicData <- subset(caDemographicData, ZCTA5 %in% FinalCaZipList)
+caDemographicData <- caDemographicData[,1:2]
 
-CaEconomicData <- read.delim2( file = "census_econ.txt", header = TRUE, sep = "\t")
-CaEconomicData <- subset(CaEconomicData, ZCTA5 %in% FinalCaZipList)
-CaEconomicData <- CaEconomicData[,1:3]
+caEconomicData <- read.delim2( file = "/Users/ryanarellano/Downloads/census_econ.txt", header = TRUE, sep = "\t")
+caEconomicData <- subset(caEconomicData, ZCTA5 %in% FinalCaZipList)
+caEconomicData <- caEconomicData[,1:3]
 
 # Zip code organizational data
 # https://www.census.gov/data/datasets/2018/econ/cbp/2018-cbp.html
 
-CaOrganizationData <- read.delim2( file = "zbp18totals.txt", header = TRUE, sep = ",")
-CaOrganizationData <- subset(CaOrganizationData, zip %in% FinalCaZipList)
+caOrganizationData <- read.delim2( file = "/Users/ryanarellano/Downloads/zbp18totals.txt", header = TRUE, sep = ",")
+caOrganizationData <- subset(caOrganizationData, zip %in% FinalCaZipList)
 # note missing about 31 zip code regions
 
-# aggregates data by zip code regions using dplyr grouped by Zip only this time
-zip.aggregate.dat.2 <- dat1 %>%
+# aggregates data by zip code regions using dplyr grouped by Zip only this time (useful for keeping legend min and max values constant when changing time windows!!!)
+zipAggregatedData <- pppDataCalifornia %>%
   group_by(Zip) %>%
-  summarize(Total_LoanAmount = sum(as.numeric(LoanAmount), na.rm = TRUE),
-            Count_Loans = n(), 
-            Total_JobsRetained = sum(as.numeric(JobsRetained), na.rm = TRUE)
+  summarize(Total_Amount_Loaned = sum(as.numeric(LoanAmount), na.rm = TRUE),
+            Total_Loans_Approved = n(), 
+            Total_Jobs_Retained = sum(as.numeric(JobsRetained), na.rm = TRUE)
             # proportion of each business type
             # more layers here
   )
 # cache this for webserver
 
-# NOTE: INCLUDE BUTTONS TO SHIFT BETWEEN LAYERS, ALSO REMEMBER TO INCLUDE DIFFERENT COLOR PALATTES FOR EACH LAYER
-# NOTE: This will need to be converted into a function later
-pal <- colorBin("RdYlBu", reverse = TRUE, domain = c(min(zip.aggregate.dat.2$Total_LoanAmount), max(zip.aggregate.dat.2$Total_LoanAmount) ), na.color = "#808080") 
+
 # NOTE: make domain a variable for each layer indicating the maxed tabulated value for the entire dataset (all times) OR that changes color scale based on size of time frame
 
 ######### DATA PREP END ########
@@ -144,70 +140,91 @@ pal <- colorBin("RdYlBu", reverse = TRUE, domain = c(min(zip.aggregate.dat.2$Tot
 
 ######### DASHBOARD WIDGET BEGIN ############
 
+# conside including a submit button to run changes in inputs (or longer delay in waiting for input changes to stop)
+
 # define UI for dashboard
 ui <- dashboardPage(
   skin = "red",
   dashboardHeader( title = "PPP Loan Dashboard"),
   dashboardSidebar(
-    sliderInput( "DateApproved", label = "Date Range",
-      min = min(dat1$DateApproved),
-      max = max(dat1$DateApproved),
-      value = c(min(dat1$DateApproved), max(dat1$DateApproved)), # Also consider making the imput data a dynamic variable!!
-      sep = ",",
-      step = 1, 
-      timeFormat = "%F" # fixed slider date format issue
-      )
+    sliderInput( "DateApproved", label = "Date Range", # consider making this a typed date range
+                 min = min(pppDataCalifornia$DateApproved),
+                 max = max(pppDataCalifornia$DateApproved),
+                 value = c(min(pppDataCalifornia$DateApproved), max(pppDataCalifornia$DateApproved)),
+                 sep = ",",
+                 step = 1, 
+                 timeFormat = "%F" # fixed slider date format issue
     ),
+    selectInput(inputId = "selectDataLayer", label = "Select Data Layer", choices = names(zipAndDateAggregatedData[3:length(zipAndDateAggregatedData)]) )
+    
+  ),
   dashboardBody(
-    fluidRow( box( width = 12, leafletOutput( outputId = "mymap", height = "750px" ) ) ), #adjust height when publishing
-    fluidRow( box( width = 12, dataTableOutput( outputId = "summarytable" ) ) )
-    )
-  
+    fluidRow( box( width = 12, leafletOutput( outputId = "leafletMap", height = "750px" ) ) ), #adjust height when publishing
+    fluidRow( box( width = 12, dataTableOutput( outputId = "summaryTable" ) ) )
   )
+  
+)
 
 
 # Define server input/output logic to pass map data and build map widget
 server <- function(input, output){
   data_input <- reactive({
     # use dplyr to aggregate data and create tables to pass to polygons 
-    zip.aggregate.dat.1 %>%
+    zipAndDateAggregatedData %>%
       filter( DateApproved >= input$DateApproved[1] ) %>% # lower slider bound
       filter( DateApproved <= input$DateApproved[2] ) %>% # upper slider bound
       group_by( Zip ) %>% # create data table given slider inputs
-      summarize(Total_LoanAmount = sum(as.numeric(Total_LoanAmount), na.rm = TRUE),
-                Count_Loans = n(), 
-                Total_JobsRetained = sum(as.numeric(Total_JobsRetained), na.rm = TRUE)
+      summarize(Total_Amount_Loaned = sum(as.numeric(Total_Amount_Loaned), na.rm = TRUE),
+                Total_Loans_Approved = n(), 
+                Total_Jobs_Retained = sum(as.numeric(Total_Jobs_Retained), na.rm = TRUE)
                 # add proportion of each business type
                 # add proportion of each industry type NAICS
+                # add CONTROL VARIABLES!!!
       )
     
   })
   
   # re-order data for label values so they line up nicely with zipboundary polygons table order
   data_input_ordered <- reactive({ 
-    data_input()[order(match(data_input()$Zip, zb1$ZCTA5CE10)), ] 
-    })
+    data_input()[order(match(data_input()$Zip, finalZipBoundaryShapefile$ZCTA5CE10)), ] 
+  })
+  
+  
+  # make reactive value = data layer variable name
+  inputDataLayerName <- reactive({
+    input$selectDataLayer[1]
+  })
+  
+  # make reactive value = values of above data layer
+  inputDataLayerValues <- reactive({
+    pull( data_input_ordered(), inputDataLayerName() )
+  })
+  
+  colorPalette <- reactive({ colorBin("RdYlBu", reverse = TRUE, domain = c(min( inputDataLayerValues() ), max( inputDataLayerValues() ) ), na.color = "#808080") 
+    
+  })
   
   # set label variables to pass data 
+  # to do: include if statement to bold the text of the displayed data layer
   labels <- reactive({
     paste("<p>", "Zip Code Region: ", data_input_ordered()$Zip, "<p>",
-          "<p>", "Total Loan Amount: ", format(data_input_ordered()$Total_LoanAmount, nsmall = 0, big.mark = ","), "<p>",
-          "<p>", "Total Loan Approvals: ", format(data_input_ordered()$Count_Loans, nsmall = 0, big.mark = ","), "<p>",
-          "<p>", "Total Jobs Retained: ", format(data_input_ordered()$Total_JobsRetained, nsmall = 0, big.mark = ","), "<p>",
+          "<p>", "Total Amount Loaned: ", format(data_input_ordered()$Total_Amount_Loaned, nsmall = 0, big.mark = ","), "<p>",
+          "<p>", "Total Loans Approved: ", format(data_input_ordered()$Total_Loans_Approved, nsmall = 0, big.mark = ","), "<p>",
+          "<p>", "Total Jobs Retained: ", format(data_input_ordered()$Total_Jobs_Retained, nsmall = 0, big.mark = ","), "<p>",
           sep = "")
     
   })
-
+  
   # build and render leaflet map
-  output$mymap <- renderLeaflet( 
-    leaflet(zb1) %>% 
+  output$leafletMap <- renderLeaflet( 
+    leaflet(finalZipBoundaryShapefile) %>% 
       setView(lng = -118.01, lat = 34.00, zoom = 9) %>% # sets initial map starting view
       addProviderTiles(providers$CartoDB.Positron) %>%  # adding background base map
       addPolygons( weight = 1, # adding shapefiles
                    smoothFactor = 0.5,
                    color = "white",
                    fillOpacity = 0.25,
-                   fillColor = pal(data_input_ordered()$Total_LoanAmount), 
+                   fillColor = colorPalette()( inputDataLayerValues() ), # note: double parenthesis because its a reactive function!
                    highlightOptions = highlightOptions(
                      weight = 5,
                      color = "#ffffff",
@@ -216,16 +233,16 @@ server <- function(input, output){
                      bringToFront = TRUE
                    ),
                    label = lapply(labels(), HTML)) %>%
-      addLegend(pal = pal, # will need to be adjusted later with dropdown layers
-                values = ~data_input_ordered()$Total_LoanAmount, # dynamically change this when changing dates too!
+      addLegend( pal = colorPalette(), # will need to be adjusted later with dropdown layers
+                values = ~inputDataLayerValues() , # dynamically changes with layers, (should it keep constant with date changes?)
                 opacity = 0.25,
                 position = "topright",
-                title = "Total Loan Amount") # dynamically change this value when adding more layers
+                title = paste( inputDataLayerName()  ) ) # dynamically changes this value when switching layers
     
   ) 
   
   # build and render data table
-  output$summarytable <- renderDataTable( format.data.frame(data_input(), big.mark = ",") )
+  output$summaryTable <- renderDataTable( format.data.frame(data_input(), big.mark = ",") )
   
 }
 
@@ -237,3 +254,4 @@ shinyApp(ui = ui, server = server)
 # dynamically adjust legend color scale (and polygonFill) when changing date ranges
 # figure out how to use leafletProxy to speed up execution
 # add additional data layers
+
