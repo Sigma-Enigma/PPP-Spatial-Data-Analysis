@@ -5,19 +5,12 @@ require(shiny)
 require(shinydashboard)
 require(leaflet)
 require(DT)
-require(tigris) # BONUS: great library that makes DLing shapefiles and doing geo_joins easy!
-
-
-# NOTE: Consider reproduing this widget but instead at state level, rather than zip level (note will need to merge all state tables), this would render much more quickly and might be more interesting to a general audience.
-
-
-# other data: 
-# https://www.sba.gov/about-sba/sba-performance/open-government/digital-sba/open-data/open-data-sources
-# https://www.sba.gov/article/2020/jul/13/sba-treasury-announce-release-paycheck-protection-program-loan-data
+# require(tigris) # BONUS: great library that makes DLing shapefiles and doing geo_joins easy!
 
 
 ########## DATA PREP BEGIN ###########
 
+# ppp = Paycheck Protection Program, naics = North American Industry Classification System
 
 # Data information: https://www.sba.gov/sites/default/files/2020-07/PPP%20Loan%20Data%20-%20Key%20Aspects-508.pdf
 # Tabular data source: https://home.treasury.gov/policy-issues/cares-act/assistance-for-small-businesses/sba-paycheck-protection-program-loan-level-data
@@ -25,7 +18,7 @@ require(tigris) # BONUS: great library that makes DLing shapefiles and doing geo
 
 # loading and cleaning data test
 # pppDataCalifornia <- read.csv2(file = file.choose(), header = TRUE, sep = "," )
- pppDataCalifornia <- read.csv2(file = "/Users/ryanarellano/Downloads/All Data by State/California/PPP Data up to 150k - CA.csv", header = TRUE, sep = "," )
+pppDataCalifornia <- read.csv2(file = "/Users/ryanarellano/Downloads/All Data by State/California/PPP Data up to 150k - CA.csv", header = TRUE, sep = "," )
 
 # changing blank businessType label to unanswered (perhaps use NA?)
 levels(pppDataCalifornia$BusinessType)[1] <- "Unanswered"
@@ -84,7 +77,7 @@ zipAndDateAggregatedData <- mergedPppData %>%
 
 # load shapefiles; TIP: use tigris to load a different shapefile!
 # zipBoundaryShapefile <- readOGR( dsn = file.choose(), layer = "tl_2019_us_zcta510", verbose = TRUE)
- zipBoundaryShapefile <- readOGR( dsn = "/Users/ryanarellano/Downloads/tl_2019_us_zcta510", layer = "tl_2019_us_zcta510", verbose = TRUE)
+zipBoundaryShapefile <- readOGR( dsn = "/Users/ryanarellano/Downloads/tl_2019_us_zcta510", layer = "tl_2019_us_zcta510", verbose = TRUE)
 
 # grab unique california zip codes
 caZipList <- unique(pppDataCalifornia$Zip) # gets vector of unique zip codes from PPP data
@@ -105,19 +98,19 @@ finalCaZipList <- unique(pppDataCalifornia$Zip)
 
 # Zip code census data
 # https://github.com/Ro-Data/Ro-Census-Summaries-By-Zipcode 
-caDemographicData <- read.delim2( file = "/Users/ryanarellano/Downloads/census_demo.txt", header = TRUE, sep = "\t")
-caDemographicData <- subset(caDemographicData, ZCTA5 %in% FinalCaZipList)
-caDemographicData <- caDemographicData[,1:2]
+californiaDemographicData <- read.delim2( file = "/Users/ryanarellano/Downloads/census_demo.txt", header = TRUE, sep = "\t")
+californiaDemographicData <- subset(californiaDemographicData, ZCTA5 %in% finalCaZipList)
+californiaDemographicData <- californiaDemographicData[,1:2]
 
-caEconomicData <- read.delim2( file = "/Users/ryanarellano/Downloads/census_econ.txt", header = TRUE, sep = "\t")
-caEconomicData <- subset(caEconomicData, ZCTA5 %in% FinalCaZipList)
-caEconomicData <- caEconomicData[,1:3]
+californiaEconomicData <- read.delim2( file = "/Users/ryanarellano/Downloads/census_econ.txt", header = TRUE, sep = "\t")
+californiaEconomicData <- subset(californiaEconomicData, ZCTA5 %in% finalCaZipList)
+californiaEconomicData <- californiaEconomicData[,1:3]
 
 # Zip code organizational data
 # https://www.census.gov/data/datasets/2018/econ/cbp/2018-cbp.html
 
-caOrganizationData <- read.delim2( file = "/Users/ryanarellano/Downloads/zbp18totals.txt", header = TRUE, sep = ",")
-caOrganizationData <- subset(caOrganizationData, zip %in% FinalCaZipList)
+californiaOrganizationData <- read.delim2( file = "/Users/ryanarellano/Downloads/zbp18totals.txt", header = TRUE, sep = ",")
+californiaOrganizationData <- subset(californiaOrganizationData, zip %in% finalCaZipList)
 # note missing about 31 zip code regions
 
 # aggregates data by zip code regions using dplyr grouped by Zip only this time (useful for keeping legend min and max values constant when changing time windows!!!)
@@ -147,15 +140,19 @@ ui <- dashboardPage(
   skin = "red",
   dashboardHeader( title = "PPP Loan Dashboard"),
   dashboardSidebar(
-    sliderInput( "DateApproved", label = "Date Range", # consider making this a typed date range
-                 min = min(pppDataCalifornia$DateApproved),
-                 max = max(pppDataCalifornia$DateApproved),
-                 value = c(min(pppDataCalifornia$DateApproved), max(pppDataCalifornia$DateApproved)),
-                 sep = ",",
-                 step = 1, 
-                 timeFormat = "%F" # fixed slider date format issue
+    dateRangeInput(
+      "DateApproved", 
+      label = "Date Range",
+      start = min(pppDataCalifornia$DateApproved),
+      end = max(pppDataCalifornia$DateApproved),
+      min = min(pppDataCalifornia$DateApproved),
+      max = max(pppDataCalifornia$DateApproved),
+      format = "yyyy-mm-dd",
+      separator = " to "
     ),
-    selectInput(inputId = "selectDataLayer", label = "Select Data Layer", choices = names(zipAndDateAggregatedData[3:length(zipAndDateAggregatedData)]) )
+    selectInput(inputId = "selectDataLayer", label = "Select Data Layer", choices = names(zipAndDateAggregatedData[3:length(zipAndDateAggregatedData)]) ),
+    actionButton("actionButton", "Submit"),
+    p("Click the Submit button to display the data for the features selected in the side panel.", "Note: Widget currently not optimized and can take 15-30 seconds to load changes.")
     
   ),
   dashboardBody(
@@ -168,7 +165,7 @@ ui <- dashboardPage(
 
 # Define server input/output logic to pass map data and build map widget
 server <- function(input, output){
-  data_input <- reactive({
+  dataInput <- eventReactive(input$actionButton, {
     # use dplyr to aggregate data and create tables to pass to polygons 
     zipAndDateAggregatedData %>%
       filter( DateApproved >= input$DateApproved[1] ) %>% # lower slider bound
@@ -185,32 +182,32 @@ server <- function(input, output){
   })
   
   # re-order data for label values so they line up nicely with zipboundary polygons table order
-  data_input_ordered <- reactive({ 
-    data_input()[order(match(data_input()$Zip, finalZipBoundaryShapefile$ZCTA5CE10)), ] 
+  dataInputOrdered <- eventReactive(input$actionButton, { 
+    dataInput()[order(match(dataInput()$Zip, finalZipBoundaryShapefile$ZCTA5CE10)), ] 
   })
   
   
-  # make reactive value = data layer variable name
-  inputDataLayerName <- reactive({
+  # make eventReactive value = data layer variable name
+  inputDataLayerName <- eventReactive(input$actionButton, {
     input$selectDataLayer[1]
   })
   
-  # make reactive value = values of above data layer
-  inputDataLayerValues <- reactive({
-    pull( data_input_ordered(), inputDataLayerName() )
+  # make eventReactive value = values of above data layer
+  inputDataLayerValues <- eventReactive(input$actionButton, {
+    pull( dataInputOrdered(), inputDataLayerName() )
   })
   
-  colorPalette <- reactive({ colorBin("RdYlBu", reverse = TRUE, domain = c(min( inputDataLayerValues() ), max( inputDataLayerValues() ) ), na.color = "#808080") 
+  colorPalette <- eventReactive(input$actionButton, { colorBin("RdYlBu", reverse = TRUE, domain = c(min( inputDataLayerValues() ), max( inputDataLayerValues() ) ), na.color = "#808080") 
     
   })
   
   # set label variables to pass data 
   # to do: include if statement to bold the text of the displayed data layer
-  labels <- reactive({
-    paste("<p>", "Zip Code Region: ", data_input_ordered()$Zip, "<p>",
-          "<p>", "Total Amount Loaned: ", format(data_input_ordered()$Total_Amount_Loaned, nsmall = 0, big.mark = ","), "<p>",
-          "<p>", "Total Loans Approved: ", format(data_input_ordered()$Total_Loans_Approved, nsmall = 0, big.mark = ","), "<p>",
-          "<p>", "Total Jobs Retained: ", format(data_input_ordered()$Total_Jobs_Retained, nsmall = 0, big.mark = ","), "<p>",
+  labels <- eventReactive(input$actionButton, {
+    paste("<p>", "Zip Code Region: ", dataInputOrdered()$Zip, "<p>",
+          "<p>", "Total Amount Loaned: ", format(dataInputOrdered()$Total_Amount_Loaned, nsmall = 0, big.mark = ","), "<p>",
+          "<p>", "Total Loans Approved: ", format(dataInputOrdered()$Total_Loans_Approved, nsmall = 0, big.mark = ","), "<p>",
+          "<p>", "Total Jobs Retained: ", format(dataInputOrdered()$Total_Jobs_Retained, nsmall = 0, big.mark = ","), "<p>",
           sep = "")
     
   })
@@ -224,7 +221,7 @@ server <- function(input, output){
                    smoothFactor = 0.5,
                    color = "white",
                    fillOpacity = 0.25,
-                   fillColor = colorPalette()( inputDataLayerValues() ), # note: double parenthesis because its a reactive function!
+                   fillColor = colorPalette()( inputDataLayerValues() ), # note: double parenthesis because its a eventReactive function!
                    highlightOptions = highlightOptions(
                      weight = 5,
                      color = "#ffffff",
@@ -234,15 +231,15 @@ server <- function(input, output){
                    ),
                    label = lapply(labels(), HTML)) %>%
       addLegend( pal = colorPalette(), # will need to be adjusted later with dropdown layers
-                values = ~inputDataLayerValues() , # dynamically changes with layers, (should it keep constant with date changes?)
-                opacity = 0.25,
-                position = "topright",
-                title = paste( inputDataLayerName()  ) ) # dynamically changes this value when switching layers
+                 values = ~inputDataLayerValues() , # dynamically changes with layers, (should it keep constant with date changes?)
+                 opacity = 0.25,
+                 position = "topright",
+                 title = paste( inputDataLayerName()  ) ) # dynamically changes this value when switching layers
     
   ) 
   
   # build and render data table
-  output$summaryTable <- renderDataTable( format.data.frame(data_input(), big.mark = ",") )
+  output$summaryTable <- renderDataTable( format.data.frame(dataInput(), big.mark = ",") )
   
 }
 
@@ -255,3 +252,15 @@ shinyApp(ui = ui, server = server)
 # figure out how to use leafletProxy to speed up execution
 # add additional data layers
 
+
+
+
+
+# Extra stuff
+
+# other data: 
+# https://www.sba.gov/about-sba/sba-performance/open-government/digital-sba/open-data/open-data-sources
+# https://www.sba.gov/article/2020/jul/13/sba-treasury-announce-release-paycheck-protection-program-loan-data
+
+
+# NOTE: Consider reproduing this widget but instead at state level, rather than zip level (note will need to merge all state tables), this would render much more quickly and might be more interesting to a general audience.
