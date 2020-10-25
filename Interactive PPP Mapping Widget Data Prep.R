@@ -95,7 +95,7 @@ finalZipBoundaryShapefile <- ms_simplify(finalZipBoundaryShapefile, keep = 0.05)
 # subset zip and date grouped tabular zip data to figure out which in zipAndDateAggregatedData are NOT in finalZipBoundaryShapefile
 zipAndDateAggregatedData <- subset(zipAndDateAggregatedData, zipAndDateAggregatedData$Zip %in% finalZipBoundaryShapefile$ZCTA5CE10 )
 
-save( zipAndDateAggregatedData, file = "zipAndDateAggregatedData.RData")
+#save( zipAndDateAggregatedData, file = "zipAndDateAggregatedData.RData")
 # cache this for webserver
 
 # subset zip grouped to figure out which in pppDataCalifornia are NOT in finalZipBoundaryShapefile
@@ -133,7 +133,22 @@ zipAggregatedData <- pppDataCalifornia %>%
 # cache this for webserver
 
 
-save(zipAggregatedData, file = "zipAggregatedData.RData")
+# save(zipAggregatedData, file = "zipAggregatedData.RData")
+
+# trimming out extra temporary files
+rm(zipBoundaryShapefile)
+rm(pppDataCalifornia)
+rm(zipAggregatedData)
+rm(naicsCodeData)
+rm(naicsCodeDataClean)
+rm(californiaDemographicData)
+rm(californiaEconomicData)
+rm(californiaOrganizationData)
+rm(caZipList)
+rm(finalCaZipList)
+
+#save.image( file = "PPP_Mapping_Widget_Cleaned_Data.RData")
+
 
 # NOTE: make domain a variable for each layer indicating the maxed tabulated value for the entire dataset (all times) OR that changes color scale based on size of time frame
 

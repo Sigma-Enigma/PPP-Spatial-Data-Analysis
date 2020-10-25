@@ -25,10 +25,10 @@ ui <- dashboardPage(
     dateRangeInput(
       "DateApproved", 
       label = "Date Range",
-      start = min(pppDataCalifornia$DateApproved),
-      end = max(pppDataCalifornia$DateApproved),
-      min = min(pppDataCalifornia$DateApproved),
-      max = max(pppDataCalifornia$DateApproved),
+      start = min(mergedPppData$DateApproved),
+      end = max(mergedPppData$DateApproved),
+      min = min(mergedPppData$DateApproved),
+      max = max(mergedPppData$DateApproved),
       format = "yyyy-mm-dd",
       separator = " to "
     ),
