@@ -5,10 +5,10 @@ File Breakdown:
 PPP Spatial Analysis.R :
 This file is a descriptive analysis used to create static plots and histograms
 
-ppp_data_cleaned_merged.R :
+Interactive PPP Mapping Widget Data Prep.R :
 This file is the data to be fed into analyses and dashboards
 
-Interactive PPP Mapping Widget.R :
+Interactive PPP Mapping Widget UI & Dashboard.R :
 This file is the Rshiny dashboard visualizing PPP data
 
 
